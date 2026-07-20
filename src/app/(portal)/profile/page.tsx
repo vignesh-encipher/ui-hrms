@@ -35,6 +35,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
 
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
 
   const loadProfile = () => {
     if (!userId) return;
@@ -59,6 +60,7 @@ export default function ProfilePage() {
   const onSubmit = async (values: any) => {
     if (!profile) return;
     try {
+      setSubmitting(true);
       await API.put(`/employees/${profile.id}`, {
         ...profile,
         phone: values.phone,
@@ -70,6 +72,8 @@ export default function ProfilePage() {
       loadProfile();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error updating profile');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -154,7 +158,7 @@ export default function ProfilePage() {
               </Form.Item>
 
               <div style={{ display: 'flex', justifyContent: 'end', marginTop: '24px' }}>
-                <Button type="primary" htmlType="submit" style={{ borderRadius: '12px', background: '#0284c7', height: '40px', fontWeight: 'bold' }}>
+                <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} style={{ borderRadius: '12px', background: '#0284c7', height: '40px', fontWeight: 'bold' }}>
                   Update Profile
                 </Button>
               </div>

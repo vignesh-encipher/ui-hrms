@@ -71,6 +71,7 @@ export default function EmployeesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -133,6 +134,7 @@ export default function EmployeesPage() {
       joiningDate: values.joiningDate ? values.joiningDate.format('YYYY-MM-DD') : null,
     };
     try {
+      setSubmitting(true);
       if (editingEmployee) {
         await API.put(`/employees/${editingEmployee.id}`, payload);
         message.success('Employee updated successfully!');
@@ -145,6 +147,8 @@ export default function EmployeesPage() {
       loadData();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error processing request');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -395,7 +399,7 @@ export default function EmployeesPage() {
           
           <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '24px' }}>
             <Button onClick={() => setIsModalOpen(false)} style={{ borderRadius: '8px' }}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ borderRadius: '8px', background: '#0284c7' }}>Save</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} style={{ borderRadius: '8px', background: '#0284c7' }}>Save</Button>
           </div>
         </Form>
       </Modal>

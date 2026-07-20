@@ -22,6 +22,7 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -55,6 +56,7 @@ export default function DepartmentsPage() {
 
   const onSubmit = async (values: any) => {
     try {
+      setSubmitting(true);
       if (editingDept) {
         await API.put(`/departments/${editingDept.id}`, values);
         message.success('Department updated successfully!');
@@ -67,6 +69,8 @@ export default function DepartmentsPage() {
       loadData();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error processing request');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -170,7 +174,7 @@ export default function DepartmentsPage() {
           
           <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '24px' }}>
             <Button onClick={() => setIsOpen(false)} style={{ borderRadius: '8px' }}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ borderRadius: '8px', background: '#0284c7' }}>Save</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} style={{ borderRadius: '8px', background: '#0284c7' }}>Save</Button>
           </div>
         </Form>
       </Modal>

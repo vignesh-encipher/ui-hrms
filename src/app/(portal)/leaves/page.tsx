@@ -38,6 +38,7 @@ export default function LeavesPage() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [remarksMap, setRemarksMap] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   const loadData = () => {
@@ -68,6 +69,7 @@ export default function LeavesPage() {
 
   const handleApply = async (values: any) => {
     try {
+      setSubmitting(true);
       await API.post('/leaves/apply', {
         employeeId,
         leaveType: values.leaveType,
@@ -81,6 +83,8 @@ export default function LeavesPage() {
       loadData();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error applying leave');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -270,7 +274,7 @@ export default function LeavesPage() {
           
           <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '24px' }}>
             <Button onClick={() => setIsOpen(false)} style={{ borderRadius: '8px' }}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ borderRadius: '8px', background: '#0284c7' }}>Submit</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} style={{ borderRadius: '8px', background: '#0284c7' }}>Submit</Button>
           </div>
         </Form>
       </Modal>
