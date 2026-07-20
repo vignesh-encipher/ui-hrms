@@ -155,12 +155,13 @@ export default function DepartmentsPage() {
         onCancel={() => setIsOpen(false)}
         footer={null}
         destroyOnClose
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={onSubmit}
-          style={{ marginTop: '20px' }}
+          style={{ paddingRight: '10px' }}
         >
           <Form.Item name="code" label="Code" rules={[{ required: true }]}>
             <Input placeholder="e.g. ENG" style={{ borderRadius: '8px' }} />

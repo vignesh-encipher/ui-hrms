@@ -240,12 +240,13 @@ export default function LeavesPage() {
         onCancel={() => setIsOpen(false)}
         footer={null}
         destroyOnClose
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleApply}
-          style={{ marginTop: '20px' }}
+          style={{ paddingRight: '10px' }}
           initialValues={{ leaveType: 'Casual Leave' }}
         >
           <Form.Item name="leaveType" label="Leave Type">

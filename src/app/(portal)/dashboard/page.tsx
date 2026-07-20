@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import API from '@/services/api';
-import { Card, Row, Col, Statistic, List, Avatar, Spin, Skeleton } from 'antd';
+import { Card, Row, Col, Statistic, List, Avatar, Spin, Skeleton, Button, message } from 'antd';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store';
 import {
   UserOutlined,
   CalendarOutlined,
@@ -45,6 +47,120 @@ const COLORS = ['#0ea5e9', '#6366f1', '#ec4899', '#f59e0b', '#10b981'];
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const { employeeId } = useSelector((state: RootState) => state.auth);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
+  const [todayRecords, setTodayRecords] = useState<any[]>([]);
+  const [secondsToday, setSecondsToday] = useState<number>(0);
+
+  const loadToday = () => {
+    if (!employeeId) return;
+    
+    // Fetch today's records by loading the current month's history and filtering for today
+    const now = new Date();
+    API.get('/attendance/monthly', {
+      params: {
+        employeeId,
+        month: now.getMonth() + 1,
+        year: now.getFullYear()
+      }
+    })
+      .then((res) => {
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const localTodayStr = `${year}-${month}-${day}`;
+        
+        const filtered = res.data.filter((r: any) => r.date === localTodayStr);
+        setTodayRecords(filtered);
+        
+        // Also set todayRecord to the active session or the last session
+        const active = filtered.find((r: any) => !r.clockOut);
+        if (active) {
+          setTodayRecord(active);
+        } else if (filtered.length > 0) {
+          setTodayRecord(filtered[filtered.length - 1]);
+        } else {
+          setTodayRecord(null);
+        }
+      })
+      .catch((err) => console.error(err));
+  };
+
+  useEffect(() => {
+    loadToday();
+  }, [employeeId]);
+
+  const handleClockIn = async () => {
+    if (!employeeId) return;
+    try {
+      await API.post('/attendance/clock-in', null, {
+        params: { employeeId, status: 'Present', remarks: 'Web Portal' },
+      });
+      message.success('Clocked In successfully!');
+      loadToday();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Error clocking in');
+    }
+  };
+
+  const handleClockOut = async () => {
+    if (!employeeId) return;
+    try {
+      await API.post('/attendance/clock-out', null, { params: { employeeId } });
+      message.success('Clocked Out successfully!');
+      loadToday();
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Error clocking out');
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    const activeSession = todayRecords.find((r: any) => !r.clockOut);
+    
+    if (activeSession) {
+      const updateTimer = () => {
+        let completedSeconds = 0;
+        todayRecords.forEach((rec) => {
+          if (rec.clockIn && rec.clockOut) {
+            const [inH, inM, inS = 0] = rec.clockIn.split(':').map(Number);
+            const [outH, outM, outS = 0] = rec.clockOut.split(':').map(Number);
+            completedSeconds += (outH * 3600 + outM * 60 + outS) - (inH * 3600 + inM * 60 + inS);
+          }
+        });
+
+        const [inH, inM, inS = 0] = activeSession.clockIn.split(':').map(Number);
+        const now = new Date();
+        const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const activeSeconds = nowSeconds - (inH * 3600 + inM * 60 + inS);
+        
+        setSecondsToday(completedSeconds + (activeSeconds > 0 ? activeSeconds : 0));
+      };
+      
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
+    } else {
+      let completedSeconds = 0;
+      todayRecords.forEach((rec) => {
+        if (rec.clockIn && rec.clockOut) {
+          const [inH, inM, inS = 0] = rec.clockIn.split(':').map(Number);
+          const [outH, outM, outS = 0] = rec.clockOut.split(':').map(Number);
+          completedSeconds += (outH * 3600 + outM * 60 + outS) - (inH * 3600 + inM * 60 + inS);
+        }
+      });
+      setSecondsToday(completedSeconds);
+    }
+    
+    return () => clearInterval(interval);
+  }, [todayRecords]);
+
+  const formatSeconds = (totalSecs: number) => {
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = Math.floor(totalSecs % 60);
+    return `${hrs}h ${mins}m ${secs}s`;
+  };
 
   useEffect(() => {
     API.get('/dashboard/stats')
@@ -93,6 +209,55 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Attendance Logger Row */}
+      {employeeId && (
+        <Card bordered={false} style={{ borderRadius: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <ClockCircleOutlined style={{ fontSize: '24px', color: '#0284c7' }} />
+              <div>
+                <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>Attendance Logger</h4>
+                <p style={{ margin: 0, fontSize: '12px', color: '#8c8c8c' }}>
+                  {todayRecord ? (
+                    todayRecord.clockOut 
+                      ? `Last session: clocked out at ${todayRecord.clockOut}`
+                      : `Active session: clocked in at ${todayRecord.clockIn}`
+                  ) : 'Not clocked in yet today'}
+                </p>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>Working Hours Today</span>
+                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#0284c7', minWidth: '100px' }}>
+                  {formatSeconds(secondsToday)}
+                </h3>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <Button
+                  type="primary"
+                  onClick={handleClockIn}
+                  disabled={!!(todayRecord && !todayRecord.clockOut)}
+                  style={{ background: '#10b981', borderColor: '#10b981', borderRadius: '12px', fontWeight: 'bold' }}
+                >
+                  Clock In
+                </Button>
+                <Button
+                  type="primary"
+                  danger
+                  onClick={handleClockOut}
+                  disabled={!todayRecord || !!todayRecord.clockOut}
+                  style={{ borderRadius: '12px', fontWeight: 'bold' }}
+                >
+                  Clock Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Metric Cards Row */}
       <Row gutter={[24, 24]}>
         {cards.map((card, idx) => (

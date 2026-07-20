@@ -295,7 +295,6 @@ export default function EmployeesPage() {
         />
       </Card>
 
-      {/* Add/Edit Modal */}
       <Modal
         title={editingEmployee ? 'Edit Employee Details' : 'Add New Employee'}
         open={isModalOpen}
@@ -303,12 +302,13 @@ export default function EmployeesPage() {
         footer={null}
         width={720}
         destroyOnClose
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={onSubmit}
-          style={{ marginTop: '20px' }}
+          style={{ paddingRight: '10px' }}
           initialValues={{ gender: 'Male', employmentType: 'Full Time', status: 'Active' }}
         >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -404,13 +404,13 @@ export default function EmployeesPage() {
         </Form>
       </Modal>
 
-      {/* View Details Modal */}
       <Modal
         title="Employee Details"
         open={!!viewingEmployee}
         onCancel={() => setViewingEmployee(null)}
         footer={null}
         width={600}
+        styles={{ body: { maxHeight: '80vh', overflowY: 'auto' } }}
       >
         {viewingEmployee && (
           <Descriptions bordered column={1} size="small" style={{ marginTop: '20px' }}>

@@ -31,6 +31,7 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -59,6 +60,7 @@ export default function PayrollPage() {
 
   const handleGenerate = async (values: any) => {
     try {
+      setSubmitting(true);
       await API.post('/payroll/generate', values);
       message.success('Salary generated successfully!');
       setIsOpen(false);
@@ -66,6 +68,8 @@ export default function PayrollPage() {
       loadData();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error generating salary');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -155,12 +159,13 @@ export default function PayrollPage() {
         onCancel={() => setIsOpen(false)}
         footer={null}
         destroyOnClose
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleGenerate}
-          style={{ marginTop: '20px' }}
+          style={{ paddingRight: '10px' }}
           initialValues={{ month: 'January', year: 2026, basic: 0, hra: 0, allowance: 0, bonus: 0, deductions: 0 }}
         >
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
@@ -205,7 +210,7 @@ export default function PayrollPage() {
 
           <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '24px' }}>
             <Button onClick={() => setIsOpen(false)} style={{ borderRadius: '8px' }}>Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ borderRadius: '8px', background: '#0284c7' }}>Generate</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} style={{ borderRadius: '8px', background: '#0284c7' }}>Generate</Button>
           </div>
         </Form>
       </Modal>

@@ -166,12 +166,13 @@ export default function DesignationsPage() {
         onCancel={() => setIsOpen(false)}
         footer={null}
         destroyOnClose
+        styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={onSubmit}
-          style={{ marginTop: '20px' }}
+          style={{ paddingRight: '10px'}}
         >
           <Form.Item name="title" label="Job Title" rules={[{ required: true }]}>
             <Input placeholder="e.g. Software Engineer" style={{ borderRadius: '8px' }} />

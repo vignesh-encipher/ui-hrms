@@ -36,11 +36,37 @@ export default function AttendancePage() {
   const [searchDate, setSearchDate] = useState(new Date().toISOString().split('T')[0]);
   const [masterRecords, setMasterRecords] = useState<AttendanceRecord[]>([]);
 
+  const [todayRecords, setTodayRecords] = useState<any[]>([]);
+  const [secondsToday, setSecondsToday] = useState<number>(0);
+
+  const loadTodayRecords = () => {
+    if (!employeeId) return;
+    const now = new Date();
+    API.get('/attendance/monthly', {
+      params: {
+        employeeId,
+        month: now.getMonth() + 1,
+        year: now.getFullYear()
+      }
+    })
+      .then((res) => {
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const localTodayStr = `${year}-${month}-${day}`;
+        
+        const filtered = res.data.filter((r: any) => r.date === localTodayStr);
+        setTodayRecords(filtered);
+      })
+      .catch((err) => console.error(err));
+  };
+
   const loadToday = () => {
     if (!employeeId) return;
     API.get('/attendance/today', { params: { employeeId } })
       .then((res) => setTodayRecord(res.data))
       .catch(() => {});
+    loadTodayRecords();
   };
 
   const loadHistory = () => {
@@ -94,6 +120,53 @@ export default function AttendancePage() {
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error clocking out');
     }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    const activeSession = todayRecords.find((r: any) => !r.clockOut);
+    
+    if (activeSession) {
+      const updateTimer = () => {
+        let completedSeconds = 0;
+        todayRecords.forEach((rec) => {
+          if (rec.clockIn && rec.clockOut) {
+            const [inH, inM, inS = 0] = rec.clockIn.split(':').map(Number);
+            const [outH, outM, outS = 0] = rec.clockOut.split(':').map(Number);
+            completedSeconds += (outH * 3600 + outM * 60 + outS) - (inH * 3600 + inM * 60 + inS);
+          }
+        });
+
+        const [inH, inM, inS = 0] = activeSession.clockIn.split(':').map(Number);
+        const now = new Date();
+        const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const activeSeconds = nowSeconds - (inH * 3600 + inM * 60 + inS);
+        
+        setSecondsToday(completedSeconds + (activeSeconds > 0 ? activeSeconds : 0));
+      };
+      
+      updateTimer();
+      interval = setInterval(updateTimer, 1000);
+    } else {
+      let completedSeconds = 0;
+      todayRecords.forEach((rec) => {
+        if (rec.clockIn && rec.clockOut) {
+          const [inH, inM, inS = 0] = rec.clockIn.split(':').map(Number);
+          const [outH, outM, outS = 0] = rec.clockOut.split(':').map(Number);
+          completedSeconds += (outH * 3600 + outM * 60 + outS) - (inH * 3600 + inM * 60 + inS);
+        }
+      });
+      setSecondsToday(completedSeconds);
+    }
+    
+    return () => clearInterval(interval);
+  }, [todayRecords]);
+
+  const formatSeconds = (totalSecs: number) => {
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = Math.floor(totalSecs % 60);
+    return `${hrs}h ${mins}m ${secs}s`;
   };
 
   interface GroupedAttendance {
@@ -219,8 +292,17 @@ export default function AttendancePage() {
       <Row gutter={[24, 24]}>
         {/* Clock Card */}
         <Col xs={24} lg={8}>
-          <Card title="Attendance Logger" bordered={false} style={{ borderRadius: '24px', height: '240px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: '16px', margin: '20px 0' }}>
+          <Card title="Attendance Logger" bordered={false} style={{ borderRadius: '24px', minHeight: '240px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
+              <div style={{ textAlign: 'left' }}>
+                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>Working Hours Today</span>
+                <h3 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#0284c7' }}>
+                  {formatSeconds(secondsToday)}
+                </h3>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '16px', margin: '16px 0' }}>
               <Button
                 type="primary"
                 icon={<LoginOutlined />}
