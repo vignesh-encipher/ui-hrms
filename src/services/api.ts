@@ -3,7 +3,7 @@ import { store } from '@/store';
 import { logout, updateToken } from '@/store/authSlice';
 
 const API = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://be-hrms-x40s.onrender.com",
   headers: {
     'Content-Type': 'application/json',
   },
@@ -64,7 +64,7 @@ API.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+          `${process.env.NEXT_PUBLIC_API_URL || "https://be-hrms-x40s.onrender.com"}/auth/refresh`,
           { refreshToken }
         );
         const { token, refreshToken: newRefreshToken } = res.data;
