@@ -126,12 +126,10 @@ export default function LoginPage() {
             rules={[{ required: true, message: 'Please input your username!' }]}
           >
             <Input
-              prefix={<UserOutlined style={{ color: 'rgba(255,255,255,0.4)' }} />}
+              className="login-input"
+              prefix={<UserOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
               placeholder="Username"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#fff',
                 borderRadius: '12px',
               }}
             />
@@ -142,12 +140,10 @@ export default function LoginPage() {
             rules={[{ required: true, message: 'Please input your password!' }]}
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.4)' }} />}
+              className="login-input"
+              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
               placeholder="Password"
               style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#fff',
                 borderRadius: '12px',
               }}
             />

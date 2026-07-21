@@ -37,3 +37,24 @@
   scrollbar-color: #cbd5e1 transparent;
 }
 
+/* Login Page Dark Input & Placeholder styles */
+.login-input {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+.login-input input {
+  color: #ffffff !important;
+}
+
+.login-input input::placeholder {
+  color: rgba(255, 255, 255, 0.65) !important;
+  opacity: 1 !important;
+}
+
+.login-input .ant-input-password-icon,
+.login-input .anticon {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+
