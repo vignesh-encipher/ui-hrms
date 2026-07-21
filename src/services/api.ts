@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { store } from '@/store';
 import { logout, updateToken } from '@/store/authSlice';
+import { notification } from 'antd';
 
 const API = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "https://be-hrms-x40s.onrender.com",
@@ -21,7 +22,7 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle auto-refresh
+// Response interceptor to handle auto-refresh and global notification on error
 let isRefreshing = false;
 let failedQueue: any[] = [];
 
@@ -40,6 +41,26 @@ API.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Show Ant Design notification popup for any API error
+    let errorMessage = 'An unexpected error occurred while communicating with the server.';
+    if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    } else if (typeof error.response?.data === 'string') {
+      errorMessage = error.response.data;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    // Suppress notification if request was cancelled intentionally
+    if (!axios.isCancel(error)) {
+      notification.error({
+        message: `API Request Failed (${error.response?.status || 'Network Error'})`,
+        description: errorMessage,
+        placement: 'topRight',
+        duration: 3,
+      });
+    }
 
     if (
       error.response?.status === 401 &&
