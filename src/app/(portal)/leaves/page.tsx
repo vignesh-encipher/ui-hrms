@@ -13,6 +13,16 @@ import CompOffManagement from '@/components/leaves/CompOffManagement';
 import LeaveStructureSettings from '@/components/leaves/LeaveStructureSettings';
 import { getCompOffSummary } from '@/services/leaveService';
 
+interface ApprovalAuditLog {
+  approverId?: string;
+  approverName?: string;
+  approverRole: string;
+  action: string;
+  timestamp: string;
+  comments?: string;
+  level: number;
+}
+
 interface LeaveRequest {
   id: string;
   employeeId: string;
@@ -22,10 +32,19 @@ interface LeaveRequest {
   numberOfDays: number;
   reason: string;
   status: string;
-  managerStatus: string;
-  hrStatus: string;
-  managerRemarks?: string;
-  hrRemarks?: string;
+  totalLevels?: number;
+  currentLevel?: number;
+  level1ApproverId?: string;
+  level1ApproverName?: string;
+  level1Role?: string;
+  level1Status?: string;
+  level1Remarks?: string;
+  level2ApproverId?: string;
+  level2ApproverName?: string;
+  level2Role?: string;
+  level2Status?: string;
+  level2Remarks?: string;
+  auditLogs?: ApprovalAuditLog[];
 }
 
 export default function LeavesPage() {
@@ -38,8 +57,10 @@ export default function LeavesPage() {
   const [compOffAvailable, setCompOffAvailable] = useState<number>(4);
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [pendingRequests, setPendingRequests] = useState<LeaveRequest[]>([]);
+  const [overallLeaves, setOverallLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [pendingLoading, setPendingLoading] = useState(false);
+  const [overallLoading, setOverallLoading] = useState(false);
 
   const [isOpen, setIsOpen] = useState(false);
   const [remarksMap, setRemarksMap] = useState<Record<string, string>>({});
@@ -69,6 +90,14 @@ export default function LeavesPage() {
         .then((res) => setPendingRequests(res.data))
         .catch(() => {})
         .finally(() => setPendingLoading(false));
+    }
+
+    if (isSuperAdminOrHR) {
+      setOverallLoading(true);
+      API.get('/leaves')
+        .then((res) => setOverallLeaves(res.data))
+        .catch(() => {})
+        .finally(() => setOverallLoading(false));
     }
   };
 
@@ -184,52 +213,113 @@ export default function LeavesPage() {
 
           {/* Pending Approvals Workflow list */}
           <Col xs={24} lg={8}>
-            <Card title="Pending Approvals" bordered={false} style={{ borderRadius: '24px', minHeight: '380px' }}>
+            <Card title="Pending Approvals (Max 2-Level Workflow)" bordered={false} style={{ borderRadius: '24px', minHeight: '380px' }}>
               {!isApprover ? (
-                <p style={{ textAlign: 'center', color: '#bfbfbf', paddingTop: '40px' }}>Access restricted to managers and HR.</p>
+                <p style={{ textAlign: 'center', color: '#bfbfbf', paddingTop: '40px' }}>Access restricted to Managers and HR.</p>
               ) : (
                 <List
                   itemLayout="vertical"
                   dataSource={pendingRequests}
                   loading={pendingLoading}
                   locale={{ emptyText: 'No pending approvals' }}
-                  renderItem={(req) => (
-                    <List.Item
-                      key={req.id}
-                      style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', paddingBottom: '16px' }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Employee: {req.employeeId}</div>
-                          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{req.leaveType} ({req.numberOfDays} Days)</div>
-                          <div style={{ fontSize: '11px', color: '#bfbfbf' }}><CalendarOutlined /> {req.startDate} to {req.endDate}</div>
-                        </div>
-                        <p style={{ margin: 0, fontStyle: 'italic', fontSize: '12px', color: '#595959' }}>"{req.reason}"</p>
+                  renderItem={(req) => {
+                    const currentLvl = req.currentLevel || 1;
+                    const isManagerUser = roles.includes('ROLE_MANAGER');
+                    const isHRUser = roles.includes('ROLE_HR');
 
-                        <Space style={{ display: 'flex', width: '100%', marginTop: '4px' }}>
-                          <Input
-                            placeholder="Remarks..."
-                            value={remarksMap[req.id] || ''}
-                            onChange={(e) => setRemarksMap(prev => ({ ...prev, [req.id]: e.target.value }))}
-                            style={{ borderRadius: '8px', width: '140px' }}
-                          />
-                          <Button
-                            type="primary"
-                            icon={<CheckOutlined />}
-                            onClick={() => handleApprove(req.id)}
-                            style={{ background: '#10b981', borderColor: '#10b981', borderRadius: '8px' }}
-                          />
-                          <Button
-                            type="primary"
-                            danger
-                            icon={<CloseOutlined />}
-                            onClick={() => handleReject(req.id)}
-                            style={{ borderRadius: '8px' }}
-                          />
-                        </Space>
-                      </div>
-                    </List.Item>
-                  )}
+                    // Check if current logged in user can approve at this current stage
+                    const canApproveCurrentStage =
+                      (currentLvl === 1 && isManagerUser) ||
+                      (currentLvl === 2 && isHRUser);
+
+                    let waitingNotice = null;
+                    if (currentLvl === 1 && isHRUser && !isManagerUser) {
+                      waitingNotice = `Awaiting Level 1 Approval (${req.level1ApproverName || 'Reporting Manager'})`;
+                    }
+
+                    return (
+                      <List.Item
+                        key={req.id}
+                        style={{ borderBottom: '1px solid rgba(0, 0, 0, 0.06)', paddingBottom: '16px' }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div>
+                            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Employee: {req.employeeId}</div>
+                            <div style={{ fontSize: '12px', color: '#8c8c8c' }}>{req.leaveType} ({req.numberOfDays} Days)</div>
+                            <div style={{ fontSize: '11px', color: '#8c8c8c' }}><CalendarOutlined /> {req.startDate} to {req.endDate}</div>
+                          </div>
+
+                          {/* Dynamic 2-Level Visual Stepper */}
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', fontSize: '10px' }}>
+                            {req.totalLevels === 2 && (
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '8px',
+                                fontWeight: 600,
+                                background: req.level1Status === 'Approved' ? '#d1fae5' : req.level1Status === 'Rejected' ? '#ffe4e6' : '#fef3c7',
+                                color: req.level1Status === 'Approved' ? '#065f46' : req.level1Status === 'Rejected' ? '#991b1b' : '#92400e',
+                              }}>
+                                L1 (Manager): {req.level1Status || 'Pending'}
+                              </span>
+                            )}
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '8px',
+                              fontWeight: 600,
+                              background: req.level2Status === 'Approved' ? '#d1fae5' : req.level2Status === 'Rejected' ? '#ffe4e6' : '#fef3c7',
+                              color: req.level2Status === 'Approved' ? '#065f46' : req.level2Status === 'Rejected' ? '#991b1b' : '#92400e',
+                            }}>
+                              L2 (HR): {req.level2Status || 'Pending'}
+                            </span>
+                          </div>
+
+                          <p style={{ margin: 0, fontStyle: 'italic', fontSize: '12px', color: '#595959' }}>"{req.reason}"</p>
+
+                          {canApproveCurrentStage ? (
+                            <Space style={{ display: 'flex', width: '100%', marginTop: '4px' }}>
+                              <Input
+                                placeholder="Remarks..."
+                                value={remarksMap[req.id] || ''}
+                                onChange={(e) => setRemarksMap(prev => ({ ...prev, [req.id]: e.target.value }))}
+                                style={{ borderRadius: '8px', width: '120px' }}
+                              />
+                              <Button
+                                type="primary"
+                                icon={<CheckOutlined />}
+                                onClick={() => handleApprove(req.id)}
+                                style={{ background: '#10b981', borderColor: '#10b981', borderRadius: '8px' }}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                type="primary"
+                                danger
+                                icon={<CloseOutlined />}
+                                onClick={() => handleReject(req.id)}
+                                style={{ borderRadius: '8px' }}
+                              >
+                                Reject
+                              </Button>
+                            </Space>
+                          ) : (
+                            waitingNotice && (
+                              <div style={{
+                                padding: '6px 12px',
+                                borderRadius: '8px',
+                                background: '#f3f4f6',
+                                color: '#6b7280',
+                                fontSize: '11px',
+                                fontStyle: 'italic',
+                                fontWeight: 500
+                              }}>
+                                ⏳ {waitingNotice}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </List.Item>
+                    );
+                  }}
                 />
               )}
             </Card>
@@ -237,6 +327,104 @@ export default function LeavesPage() {
         </Row>
       ),
     },
+    ...(isSuperAdminOrHR ? [{
+      key: 'overall',
+      label: (
+        <span>
+          <FileTextOutlined /> Overall Leaves List (HR View)
+        </span>
+      ),
+      children: (
+        <Card title="Overall Organization Leave Requests" bordered={false} style={{ borderRadius: '24px' }}>
+          <Table
+            dataSource={overallLeaves}
+            rowKey="id"
+            loading={overallLoading}
+            pagination={{ pageSize: 10 }}
+            columns={[
+              { title: 'Employee ID', dataIndex: 'employeeId', key: 'employeeId', width: 120 },
+              { title: 'Type', dataIndex: 'leaveType', key: 'leaveType' },
+              { title: 'Start Date', dataIndex: 'startDate', key: 'startDate' },
+              { title: 'End Date', dataIndex: 'endDate', key: 'endDate' },
+              { title: 'Days', dataIndex: 'numberOfDays', key: 'numberOfDays', width: 70 },
+              { title: 'Reason', dataIndex: 'reason', key: 'reason', ellipsis: true },
+              {
+                title: 'Status',
+                dataIndex: 'status',
+                key: 'status',
+                render: (status: string, record: LeaveRequest) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      display: 'inline-block',
+                      width: 'fit-content',
+                      background: status === 'Approved' ? '#d1fae5' : status === 'Rejected' ? '#ffe4e6' : '#fef3c7',
+                      color: status === 'Approved' ? '#065f46' : status === 'Rejected' ? '#991b1b' : '#92400e',
+                    }}>
+                      {status}
+                    </span>
+                    <div style={{ fontSize: '10px', color: '#6b7280' }}>
+                      {record.level1Status && `L1: ${record.level1Status}`}
+                      {record.level2Status && ` | L2: ${record.level2Status}`}
+                    </div>
+                  </div>
+                )
+              },
+              {
+                title: 'Actions',
+                key: 'actions',
+                align: 'right' as const,
+                render: (_: any, record: LeaveRequest) => {
+                  const isHRPendingStage = record.currentLevel === 2 && record.status === 'Pending Level 2 - HR Approval';
+                  const isHRRole = roles.includes('ROLE_HR');
+
+                  if (isHRPendingStage && isHRRole) {
+                    return (
+                      <Space size={6}>
+                        <Input
+                          placeholder="Remarks..."
+                          value={remarksMap[record.id] || ''}
+                          onChange={(e) => setRemarksMap(prev => ({ ...prev, [record.id]: e.target.value }))}
+                          style={{ borderRadius: '6px', width: '110px', fontSize: '12px' }}
+                        />
+                        <Button
+                          type="primary"
+                          size="small"
+                          icon={<CheckOutlined />}
+                          onClick={() => handleApprove(record.id)}
+                          style={{ background: '#10b981', borderColor: '#10b981', borderRadius: '6px' }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          type="primary"
+                          danger
+                          size="small"
+                          icon={<CloseOutlined />}
+                          onClick={() => handleReject(record.id)}
+                          style={{ borderRadius: '6px' }}
+                        >
+                          Reject
+                        </Button>
+                      </Space>
+                    );
+                  }
+
+                  if (record.status?.startsWith('Pending Level 1')) {
+                    return <span style={{ fontSize: '11px', color: '#9ca3af', fontStyle: 'italic' }}>Awaiting L1 Approval</span>;
+                  }
+
+                  return <span style={{ fontSize: '11px', color: '#9ca3af' }}>No Action Required</span>;
+                }
+              }
+            ]}
+          />
+        </Card>
+      ),
+    }] : []),
     {
       key: 'compoff',
       label: (
