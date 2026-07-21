@@ -13,6 +13,7 @@ import {
   SolutionOutlined,
   CalendarOutlined,
   CarryOutOutlined,
+  ClusterOutlined,
   DollarOutlined,
   LogoutOutlined
 } from '@ant-design/icons';
@@ -37,6 +38,7 @@ export default function Sidebar() {
   const menuItems = [
     { key: '/dashboard', label: 'Dashboard', icon: <DashboardOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/employees', label: 'Employees', icon: <UserOutlined />, roles: ['ROLE_HR', 'ROLE_SUPER_ADMIN', 'ROLE_MANAGER'] },
+    { key: '/organization-chart', label: 'Org Chart', icon: <ClusterOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/departments', label: 'Departments', icon: <ApartmentOutlined />, roles: ['ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/designations', label: 'Designations', icon: <SolutionOutlined />, roles: ['ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/attendance', label: 'Attendance', icon: <CalendarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
