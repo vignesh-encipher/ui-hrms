@@ -52,6 +52,8 @@ export default function DashboardPage() {
   const [todayRecord, setTodayRecord] = useState<any>(null);
   const [todayRecords, setTodayRecords] = useState<any[]>([]);
   const [secondsToday, setSecondsToday] = useState<number>(0);
+  const [clockInLoading, setClockInLoading] = useState(false);
+  const [clockOutLoading, setClockOutLoading] = useState(false);
 
   const loadToday = () => {
     if (!employeeId) return;
@@ -94,6 +96,7 @@ export default function DashboardPage() {
   const handleClockIn = async () => {
     if (!employeeId) return;
     try {
+      setClockInLoading(true);
       await API.post('/attendance/clock-in', null, {
         params: { employeeId, status: 'Present', remarks: 'Web Portal' },
       });
@@ -101,17 +104,22 @@ export default function DashboardPage() {
       loadToday();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error clocking in');
+    } finally {
+      setClockInLoading(false);
     }
   };
 
   const handleClockOut = async () => {
     if (!employeeId) return;
     try {
+      setClockOutLoading(true);
       await API.post('/attendance/clock-out', null, { params: { employeeId } });
       message.success('Clocked Out successfully!');
       loadToday();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error clocking out');
+    } finally {
+      setClockOutLoading(false);
     }
   };
 
@@ -238,7 +246,8 @@ export default function DashboardPage() {
                 <Button
                   type="primary"
                   onClick={handleClockIn}
-                  disabled={!!(todayRecord && !todayRecord.clockOut)}
+                  loading={clockInLoading}
+                  disabled={clockInLoading || !!(todayRecord && !todayRecord.clockOut)}
                   style={{ background: '#10b981', borderColor: '#10b981', borderRadius: '12px', fontWeight: 'bold' }}
                 >
                   Clock In
@@ -247,7 +256,8 @@ export default function DashboardPage() {
                   type="primary"
                   danger
                   onClick={handleClockOut}
-                  disabled={!todayRecord || !!todayRecord.clockOut}
+                  loading={clockOutLoading}
+                  disabled={clockOutLoading || !todayRecord || !!todayRecord.clockOut}
                   style={{ borderRadius: '12px', fontWeight: 'bold' }}
                 >
                   Clock Out

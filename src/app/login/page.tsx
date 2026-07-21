@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { setCredentials } from '@/store/authSlice';
+import { RootState } from '@/store';
 import { useRouter } from 'next/navigation';
 import API from '@/services/api';
 import { Card, Form, Input, Button, message } from 'antd';
@@ -11,7 +12,14 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 export default function LoginPage() {
   const dispatch = useDispatch();
   const router = useRouter();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
 
   const onFinish = async (values: any) => {
     setLoading(true);
@@ -31,12 +39,10 @@ export default function LoginPage() {
         id: payload.id,
       }));
       message.success('Login successful! Redirecting...');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      router.push('/dashboard');
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Invalid username or password';
-      message.error(msg);
+      const msg = error.response?.data?.message || error.response?.data || 'Invalid username or password';
+      message.error(typeof msg === 'string' ? msg : 'Invalid username or password');
     } finally {
       setLoading(false);
     }

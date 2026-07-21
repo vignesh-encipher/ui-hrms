@@ -38,6 +38,8 @@ export default function AttendancePage() {
 
   const [todayRecords, setTodayRecords] = useState<any[]>([]);
   const [secondsToday, setSecondsToday] = useState<number>(0);
+  const [clockInLoading, setClockInLoading] = useState(false);
+  const [clockOutLoading, setClockOutLoading] = useState(false);
 
   const loadTodayRecords = () => {
     if (!employeeId) return;
@@ -99,6 +101,7 @@ export default function AttendancePage() {
   const handleClockIn = async () => {
     if (!employeeId) return;
     try {
+      setClockInLoading(true);
       await API.post('/attendance/clock-in', null, {
         params: { employeeId, status: 'Present', remarks: 'Web Portal' },
       });
@@ -107,18 +110,23 @@ export default function AttendancePage() {
       loadHistory();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error clocking in');
+    } finally {
+      setClockInLoading(false);
     }
   };
 
   const handleClockOut = async () => {
     if (!employeeId) return;
     try {
+      setClockOutLoading(true);
       await API.post('/attendance/clock-out', null, { params: { employeeId } });
       message.success('Clocked Out successfully!');
       loadToday();
       loadHistory();
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error clocking out');
+    } finally {
+      setClockOutLoading(false);
     }
   };
 
@@ -307,7 +315,8 @@ export default function AttendancePage() {
                 type="primary"
                 icon={<LoginOutlined />}
                 onClick={handleClockIn}
-                disabled={!!(todayRecord && !todayRecord.clockOut)}
+                loading={clockInLoading}
+                disabled={clockInLoading || !!(todayRecord && !todayRecord.clockOut)}
                 style={{ flex: 1, height: '44px', background: '#10b981', borderColor: '#10b981', borderRadius: '12px', fontWeight: 'semibold' }}
               >
                 Clock In
@@ -317,7 +326,8 @@ export default function AttendancePage() {
                 danger
                 icon={<LogoutOutlined />}
                 onClick={handleClockOut}
-                disabled={!todayRecord || !!todayRecord.clockOut}
+                loading={clockOutLoading}
+                disabled={clockOutLoading || !todayRecord || !!todayRecord.clockOut}
                 style={{ flex: 1, height: '44px', borderRadius: '12px', fontWeight: 'semibold' }}
               >
                 Clock Out
