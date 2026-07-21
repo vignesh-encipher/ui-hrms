@@ -45,6 +45,7 @@ interface Employee {
   managerId?: string;
   managerName?: string;
   joiningDate?: string;
+  resignationDate?: string;
   employmentType: string;
   salary: number;
   address?: string;
@@ -60,7 +61,7 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [designations, setDesignations] = useState<any[]>([]);
-  const [managers, setManagers] = useState<any[]>([]);
+  const [managers, setManagers] = useState<Employee[]>([]);
   
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -118,11 +119,12 @@ export default function EmployeesPage() {
       designationId: emp.designationId,
       managerId: emp.managerId,
       joiningDate: emp.joiningDate ? dayjs(emp.joiningDate) : null,
+      resignationDate: emp.resignationDate ? dayjs(emp.resignationDate) : null,
       employmentType: emp.employmentType,
       salary: emp.salary,
       address: emp.address,
       emergencyContact: emp.emergencyContact,
-      status: emp.status,
+      status: emp.status || 'Active',
     });
     setIsModalOpen(true);
   };
@@ -132,6 +134,7 @@ export default function EmployeesPage() {
       ...values,
       dob: values.dob ? values.dob.format('YYYY-MM-DD') : null,
       joiningDate: values.joiningDate ? values.joiningDate.format('YYYY-MM-DD') : null,
+      resignationDate: values.resignationDate ? values.resignationDate.format('YYYY-MM-DD') : null,
     };
     try {
       setSubmitting(true);
@@ -303,7 +306,7 @@ export default function EmployeesPage() {
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
         footer={null}
-        width={720}
+        width={"80%"}
         destroyOnClose
         styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       >
@@ -388,13 +391,27 @@ export default function EmployeesPage() {
                 options={designations.map((d) => ({ value: d.id, label: d.title }))}
               />
             </Form.Item>
-            <Form.Item name="managerId" label="Manager">
+            <Form.Item name="managerId" label="Reporting Manager">
               <Select
-                placeholder="Select Manager"
+                showSearch
+                placeholder="Search Reporting Manager by Name, ID, or Designation..."
                 style={{ borderRadius: '8px' }}
+                optionFilterProp="children"
+                filterOption={(input, option) => {
+                  const label = String(option?.label || '').toLowerCase();
+                  const val = String(option?.value || '').toLowerCase();
+                  const searchKey = input.toLowerCase();
+                  return label.includes(searchKey) || val.includes(searchKey);
+                }}
                 options={[
-                  { value: '', label: 'No Manager' },
-                  ...managers.map((m) => ({ value: m.employeeId, label: `${m.firstName} ${m.lastName}` })),
+                  { value: '', label: 'No Manager (Top-Level Employee / CEO / Head)' },
+                  ...managers.map((m) => {
+                    const desigTitle = designations.find((d) => d.id === m.designationId)?.title || 'Manager';
+                    return {
+                      value: m.employeeId,
+                      label: `${m.firstName} ${m.lastName} (${m.employeeId} - ${desigTitle})`,
+                    };
+                  }),
                 ]}
               />
             </Form.Item>
@@ -412,7 +429,7 @@ export default function EmployeesPage() {
             <Form.Item name="salary" label="Salary" rules={[{ required: false }]}>
               <Input type="number" style={{ borderRadius: '8px' }} />
             </Form.Item>
-            <Form.Item name="status" label="Status">
+            <Form.Item name="status" label="Status" rules={[{ required: true, message: 'Status is required' }]}>
               <Select
                 style={{ borderRadius: '8px' }}
                 options={[
@@ -422,6 +439,20 @@ export default function EmployeesPage() {
                   { value: 'On Leave', label: 'On Leave' },
                 ]}
               />
+            </Form.Item>
+            <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.status !== currentValues.status}>
+              {({ getFieldValue }) => {
+                const currentStatus = getFieldValue('status');
+                return currentStatus && currentStatus !== 'Active' ? (
+                  <Form.Item
+                    name="resignationDate"
+                    label="Resignation / End Date"
+                    rules={[{ required: true, message: 'Please select the resignation / exit date!' }]}
+                  >
+                    <DatePicker style={{ width: '100%', borderRadius: '8px' }} format="YYYY-MM-DD" placeholder="Select Resignation Date" />
+                  </Form.Item>
+                ) : null;
+              }}
             </Form.Item>
           </div>
           <Form.Item name="address" label="Address">
@@ -459,6 +490,9 @@ export default function EmployeesPage() {
             <Descriptions.Item label="Employment Type">{viewingEmployee.employmentType}</Descriptions.Item>
             <Descriptions.Item label="Salary">{viewingEmployee.salary.toLocaleString()}</Descriptions.Item>
             <Descriptions.Item label="Status">{viewingEmployee.status}</Descriptions.Item>
+            {viewingEmployee.resignationDate && (
+              <Descriptions.Item label="Resignation / Exit Date">{viewingEmployee.resignationDate}</Descriptions.Item>
+            )}
             <Descriptions.Item label="Address">{viewingEmployee.address || '-'}</Descriptions.Item>
             <Descriptions.Item label="Emergency Contact">{viewingEmployee.emergencyContact || '-'}</Descriptions.Item>
           </Descriptions>
