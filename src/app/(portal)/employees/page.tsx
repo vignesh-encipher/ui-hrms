@@ -140,7 +140,10 @@ export default function EmployeesPage() {
         message.success('Employee updated successfully!');
       } else {
         await API.post('/employees', payload);
-        message.success('Employee added successfully!');
+        message.success({
+          content: 'Employee account created successfully. The employee can now log in using their email address and the assigned password.',
+          duration: 6,
+        });
       }
       setIsModalOpen(false);
       form.resetFields();
@@ -309,7 +312,7 @@ export default function EmployeesPage() {
           layout="vertical"
           onFinish={onSubmit}
           style={{ paddingRight: '10px' }}
-          initialValues={{ gender: 'Male', employmentType: 'Full Time', status: 'Active' }}
+          initialValues={{ gender: 'Male', employmentType: 'Full Time', status: 'Active', role: 'Employee' }}
         >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Form.Item name="firstName" label="First Name" rules={[{ required: true }]}>
@@ -318,9 +321,40 @@ export default function EmployeesPage() {
             <Form.Item name="lastName" label="Last Name" rules={[{ required: true }]}>
               <Input style={{ borderRadius: '8px' }} />
             </Form.Item>
-            <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
+            <Form.Item name="email" label="Email / Username" rules={[{ required: true, type: 'email' }]}>
               <Input style={{ borderRadius: '8px' }} />
             </Form.Item>
+
+            {!editingEmployee && (
+              <Form.Item
+                name="password"
+                label="Initial Password"
+                rules={[
+                  { required: true, message: 'Password is required' },
+                  { min: 8, message: 'Password must be at least 8 characters' },
+                  { pattern: /(?=.*[A-Z])/, message: 'Must contain at least one uppercase letter' },
+                  { pattern: /(?=.*[a-z])/, message: 'Must contain at least one lowercase letter' },
+                  { pattern: /(?=.*[0-9])/, message: 'Must contain at least one number' },
+                  { pattern: /(?=.*[!@#$%^&*(),.?":{}|<>])/, message: 'Must contain at least one special character' },
+                ]}
+              >
+                <Input.Password placeholder="Set login password" style={{ borderRadius: '8px' }} />
+              </Form.Item>
+            )}
+
+            <Form.Item name="role" label="Account Role" rules={[{ required: true }]}>
+              <Select
+                style={{ borderRadius: '8px' }}
+                options={[
+                  { value: 'Employee', label: 'Employee' },
+                  { value: 'Manager', label: 'Manager' },
+                  { value: 'HR', label: 'HR' },
+                  { value: 'Admin', label: 'Admin' },
+                  { value: 'Super Admin', label: 'Super Admin' },
+                ]}
+              />
+            </Form.Item>
+
             <Form.Item name="phone" label="Phone">
               <Input style={{ borderRadius: '8px' }} />
             </Form.Item>
@@ -375,7 +409,7 @@ export default function EmployeesPage() {
                 ]}
               />
             </Form.Item>
-            <Form.Item name="salary" label="Salary ($)" rules={[{ required: true }]}>
+            <Form.Item name="salary" label="Salary" rules={[{ required: false }]}>
               <Input type="number" style={{ borderRadius: '8px' }} />
             </Form.Item>
             <Form.Item name="status" label="Status">
@@ -423,7 +457,7 @@ export default function EmployeesPage() {
             <Descriptions.Item label="Designation">{viewingEmployee.designationTitle || '-'}</Descriptions.Item>
             <Descriptions.Item label="Manager">{viewingEmployee.managerName || 'None'}</Descriptions.Item>
             <Descriptions.Item label="Employment Type">{viewingEmployee.employmentType}</Descriptions.Item>
-            <Descriptions.Item label="Salary">${viewingEmployee.salary.toLocaleString()}</Descriptions.Item>
+            <Descriptions.Item label="Salary">{viewingEmployee.salary.toLocaleString()}</Descriptions.Item>
             <Descriptions.Item label="Status">{viewingEmployee.status}</Descriptions.Item>
             <Descriptions.Item label="Address">{viewingEmployee.address || '-'}</Descriptions.Item>
             <Descriptions.Item label="Emergency Contact">{viewingEmployee.emergencyContact || '-'}</Descriptions.Item>
