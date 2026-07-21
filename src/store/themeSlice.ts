@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
+import { getStorage, setStorage } from '@/utils/storages';
 
 interface ThemeState {
   mode: 'light' | 'dark';
@@ -6,7 +7,7 @@ interface ThemeState {
 
 const getInitialTheme = (): 'light' | 'dark' => {
   if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('theme');
+    const saved = getStorage('theme');
     if (saved === 'dark' || saved === 'light') return saved;
   }
   return 'light';
@@ -18,7 +19,7 @@ const themeSlice = createSlice({
   reducers: {
     toggleTheme: (state) => {
       state.mode = state.mode === 'light' ? 'dark' : 'light';
-      localStorage.setItem('theme', state.mode);
+      setStorage('theme', state.mode);
       if (typeof document !== 'undefined') {
         if (state.mode === 'dark') {
           document.documentElement.classList.add('dark');
@@ -29,7 +30,7 @@ const themeSlice = createSlice({
     },
     setTheme: (state, action: { payload: 'light' | 'dark' }) => {
       state.mode = action.payload;
-      localStorage.setItem('theme', state.mode);
+      setStorage('theme', state.mode);
       if (typeof document !== 'undefined') {
         if (state.mode === 'dark') {
           document.documentElement.classList.add('dark');

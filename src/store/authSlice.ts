@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { getStorage, setStorage, removeStorage } from '@/utils/storages';
 
 interface AuthState {
   token: string | null;
@@ -24,13 +25,14 @@ const getInitialState = (): AuthState => {
       isAuthenticated: false,
     };
   }
-  const token = localStorage.getItem('token');
-  const refreshToken = localStorage.getItem('refreshToken');
-  const username = localStorage.getItem('username');
-  const email = localStorage.getItem('email');
-  const roles = JSON.parse(localStorage.getItem('roles') || '[]');
-  const employeeId = localStorage.getItem('employeeId');
-  const id = localStorage.getItem('userId');
+  const token = getStorage('token');
+  const refreshToken = getStorage('refreshToken');
+  const username = getStorage('username');
+  const email = getStorage('email');
+  const rolesRaw = getStorage('roles');
+  const roles = rolesRaw ? JSON.parse(rolesRaw) : [];
+  const employeeId = getStorage('employeeId');
+  const id = getStorage('userId');
 
   return {
     token,
@@ -70,19 +72,19 @@ const authSlice = createSlice({
       state.id = id;
       state.isAuthenticated = true;
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('username', username);
-      localStorage.setItem('email', email);
-      localStorage.setItem('roles', JSON.stringify(roles));
-      if (employeeId) localStorage.setItem('employeeId', employeeId);
-      localStorage.setItem('userId', id);
+      setStorage('token', token);
+      setStorage('refreshToken', refreshToken);
+      setStorage('username', username);
+      setStorage('email', email);
+      setStorage('roles', JSON.stringify(roles));
+      if (employeeId) setStorage('employeeId', employeeId);
+      setStorage('userId', id);
     },
     updateToken: (state, action: PayloadAction<{ token: string; refreshToken: string }>) => {
       state.token = action.payload.token;
       state.refreshToken = action.payload.refreshToken;
-      localStorage.setItem('token', action.payload.token);
-      localStorage.setItem('refreshToken', action.payload.refreshToken);
+      setStorage('token', action.payload.token);
+      setStorage('refreshToken', action.payload.refreshToken);
     },
     logout: (state) => {
       state.token = null;
@@ -94,13 +96,13 @@ const authSlice = createSlice({
       state.id = null;
       state.isAuthenticated = false;
 
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('username');
-      localStorage.removeItem('email');
-      localStorage.removeItem('roles');
-      localStorage.removeItem('employeeId');
-      localStorage.removeItem('userId');
+      removeStorage('token');
+      removeStorage('refreshToken');
+      removeStorage('username');
+      removeStorage('email');
+      removeStorage('roles');
+      removeStorage('employeeId');
+      removeStorage('userId');
     },
   },
 });
