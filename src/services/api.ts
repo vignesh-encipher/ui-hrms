@@ -37,29 +37,48 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+import { getResponePopup } from '@/utils/reusable';
+
 API.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.data && typeof response.data === 'object' && 'status' in response.data && 'response' in response.data) {
+      const method = response.config?.method?.toLowerCase();
+      // Show success notification for non-GET methods, or if status is not SUCCESS (e.g. USER_DEFINED_ERROR etc.)
+      if (method !== 'get' || response.data.status !== 'SUCCESS') {
+        getResponePopup(response);
+      }
+      return {
+        ...response,
+        data: response.data.response,
+      };
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
-    // Show Ant Design notification popup for any API error
-    let errorMessage = 'An unexpected error occurred while communicating with the server.';
-    if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    } else if (typeof error.response?.data === 'string') {
-      errorMessage = error.response.data;
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
+    // Show Ant Design notification popup for any API error using getResponePopup if response matches expected format
+    if (error.response?.data && typeof error.response.data === 'object' && 'status' in error.response.data) {
+      getResponePopup(error.response);
+    } else {
+      let errorMessage = 'An unexpected error occurred while communicating with the server.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (typeof error.response?.data === 'string') {
+        errorMessage = error.response.data;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
 
-    // Suppress notification if request was cancelled intentionally
-    if (!axios.isCancel(error)) {
-      notification.error({
-        message: `API Request Failed (${error.response?.status || 'Network Error'})`,
-        description: errorMessage,
-        placement: 'topRight',
-        duration: 3,
-      });
+      // Suppress notification if request was cancelled intentionally
+      if (!axios.isCancel(error)) {
+        notification.error({
+          message: `API Request Failed (${error.response?.status || 'Network Error'})`,
+          description: errorMessage,
+          placement: 'topRight',
+          duration: 3,
+        });
+      }
     }
 
     if (
