@@ -110,7 +110,7 @@ export default function LeavesPage() {
       setSelectedHrRequest(null);
       setHrRemarks('');
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     } finally {
       setActionLoading(false);
@@ -180,7 +180,7 @@ export default function LeavesPage() {
       setIsOpen(false);
       form.resetFields();
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     } finally {
       setSubmitting(false);
@@ -195,7 +195,7 @@ export default function LeavesPage() {
       });
       setRemarksMap(prev => ({ ...prev, [id]: '' }));
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     }
   };
@@ -208,7 +208,7 @@ export default function LeavesPage() {
       });
       setRemarksMap(prev => ({ ...prev, [id]: '' }));
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     }
   };
@@ -325,6 +325,13 @@ export default function LeavesPage() {
 
   const processedHistory = [...processedLeaves, ...processedCompOffs].sort((a, b) => b.date.localeCompare(a.date));
 
+  const hasSubordinates = employeeList.some(e => 
+    e.managerId === employeeId || 
+    (e.managerId && e.managerId === email) ||
+    e.managerName === employeeId
+  );
+  const showPendingTab = isSuperAdminOrHR || hasSubordinates;
+
   const tabItems = [
     {
       key: 'history',
@@ -362,7 +369,7 @@ export default function LeavesPage() {
         </Card>
       ),
     },
-    {
+    ...(showPendingTab ? [{
       key: 'pending',
       label: (
         <span>
@@ -551,7 +558,7 @@ export default function LeavesPage() {
           />
         </Card>
       ),
-    },
+    }] : []),
     ...(isSuperAdminOrHR ? [{
       key: 'overall',
       label: (

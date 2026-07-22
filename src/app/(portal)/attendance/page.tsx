@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import API from '@/services/api';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
-import { Card, Row, Col, Button, Table, Space, Select, DatePicker, message } from 'antd';
-import { LoginOutlined, LogoutOutlined, CheckCircleOutlined, SearchOutlined } from '@ant-design/icons';
+import { Card, Button, Table, Space, Select, DatePicker, message, Tabs } from 'antd';
 import dayjs from 'dayjs';
+import RegularizationTab from '@/components/attendance/RegularizationTab';
 
 const { Option } = Select;
 
@@ -21,7 +21,7 @@ interface AttendanceRecord {
 }
 
 export default function AttendancePage() {
-  const { employeeId, roles } = useSelector((state: RootState) => state.auth);
+  const { employeeId, email, roles } = useSelector((state: RootState) => state.auth);
   const isHR = roles.includes('ROLE_HR') || roles.includes('ROLE_SUPER_ADMIN');
 
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
@@ -215,12 +215,18 @@ export default function AttendancePage() {
       const hrs = Math.floor(totalMinutes / 60);
       const mins = totalMinutes % 60;
 
+      // Min 7 hours (420 minutes) is Present, otherwise Absent. If currently clocked in (Active), show 'Clocked In'.
+      let computedStatus = totalMinutes >= 420 ? 'Present' : 'Absent';
+      if (lastClockOut === 'Active') {
+        computedStatus = 'Clocked In';
+      }
+
       return {
         key: date,
         date,
         clockIn: firstClockIn,
         clockOut: lastClockOut,
-        status: recs[0].status,
+        status: computedStatus,
         workingHours: `${hrs}h ${mins}m`,
         sessions: recs.length,
       };
@@ -253,13 +259,19 @@ export default function AttendancePage() {
       const hrs = Math.floor(totalMinutes / 60);
       const mins = totalMinutes % 60;
 
+      // Min 7 hours (420 minutes) is Present, otherwise Absent. If currently clocked in (Active), show 'Clocked In'.
+      let computedStatus = totalMinutes >= 420 ? 'Present' : 'Absent';
+      if (lastClockOut === 'Active') {
+        computedStatus = 'Clocked In';
+      }
+
       return {
         key: empId,
         date: searchDate,
         employeeId: empId,
         clockIn: firstClockIn,
         clockOut: lastClockOut,
-        status: recs[0].status,
+        status: computedStatus,
         workingHours: `${hrs}h ${mins}m`,
         sessions: recs.length,
         remarks: recs.map(r => r.remarks).filter(Boolean).join(', '),
@@ -273,16 +285,27 @@ export default function AttendancePage() {
     { title: 'Last Out', dataIndex: 'clockOut', key: 'clockOut' },
     { title: 'Sessions', dataIndex: 'sessions', key: 'sessions', width: 90 },
     { title: 'Working Hours', dataIndex: 'workingHours', key: 'workingHours' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (status: string) => (
-      <span style={{
-        padding: '3px 8px',
-        borderRadius: '12px',
-        fontSize: '11px',
-        fontWeight: 'bold',
-        background: status === 'Present' ? '#d1fae5' : '#ffe4e6',
-        color: status === 'Present' ? '#065f46' : '#991b1b',
-      }}>{status}</span>
-    )},
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (status: string) => {
+      let bg = '#ffe4e6';
+      let color = '#991b1b';
+      if (status === 'Present') {
+        bg = '#d1fae5';
+        color = '#065f46';
+      } else if (status === 'Clocked In') {
+        bg = '#e0f2fe';
+        color = '#0369a1';
+      }
+      return (
+        <span style={{
+          padding: '3px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          background: bg,
+          color: color,
+        }}>{status}</span>
+      );
+    }},
   ];
 
   const masterColumns = [
@@ -291,123 +314,114 @@ export default function AttendancePage() {
     { title: 'Last Out', dataIndex: 'clockOut', key: 'clockOut' },
     { title: 'Sessions', dataIndex: 'sessions', key: 'sessions', width: 90 },
     { title: 'Working Hours', dataIndex: 'workingHours', key: 'workingHours' },
-    { title: 'Status', dataIndex: 'status', key: 'status' },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (status: string) => {
+      let bg = '#ffe4e6';
+      let color = '#991b1b';
+      if (status === 'Present') {
+        bg = '#d1fae5';
+        color = '#065f46';
+      } else if (status === 'Clocked In') {
+        bg = '#e0f2fe';
+        color = '#0369a1';
+      }
+      return (
+        <span style={{
+          padding: '3px 8px',
+          borderRadius: '12px',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          background: bg,
+          color: color,
+        }}>{status}</span>
+      );
+    }},
     { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', render: (val: any) => val || '-' },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <Row gutter={[24, 24]}>
-        {/* Clock Card */}
-        <Col xs={24} lg={8}>
-          <Card title="Attendance Logger" bordered={false} style={{ borderRadius: '24px', minHeight: '240px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>Working Hours Today</span>
-                <h3 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', color: '#0284c7' }}>
-                  {formatSeconds(secondsToday)}
-                </h3>
-              </div>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '16px', margin: '16px 0' }}>
-              <Button
-                type="primary"
-                icon={<LoginOutlined />}
-                onClick={handleClockIn}
-                loading={clockInLoading}
-                disabled={clockInLoading || !!(todayRecord && !todayRecord.clockOut)}
-                style={{ flex: 1, height: '44px', background: '#10b981', borderColor: '#10b981', borderRadius: '12px', fontWeight: 'semibold' }}
+    <Tabs
+      defaultActiveKey="logs"
+      items={[
+        {
+          key: 'logs',
+          label: 'Attendance Logs',
+          children: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '12px' }}>
+              {/* Monthly Logs Card */}
+              <Card
+                title="My Monthly Attendance"
+                bordered={false}
+                style={{ borderRadius: '24px', minHeight: '240px' }}
+                extra={
+                  <Space>
+                    <Select
+                      value={month}
+                      onChange={(v) => setMonth(v)}
+                      style={{ width: 120 }}
+                      options={Array.from({ length: 12 }, (_, i) => ({
+                        value: i + 1,
+                        label: new Date(0, i).toLocaleString('en', { month: 'long' })
+                      }))}
+                    />
+                    <Select
+                      value={year}
+                      onChange={(v) => setYear(v)}
+                      style={{ width: 90 }}
+                      options={[
+                        { value: 2026, label: '2026' },
+                        { value: 2025, label: '2025' }
+                      ]}
+                    />
+                  </Space>
+                }
               >
-                Clock In
-              </Button>
-              <Button
-                type="primary"
-                danger
-                icon={<LogoutOutlined />}
-                onClick={handleClockOut}
-                loading={clockOutLoading}
-                disabled={clockOutLoading || !todayRecord || !!todayRecord.clockOut}
-                style={{ flex: 1, height: '44px', borderRadius: '12px', fontWeight: 'semibold' }}
-              >
-                Clock Out
-              </Button>
-            </div>
-            <div style={{ fontSize: '12px', color: '#8c8c8c', textAlign: 'center' }}>
-              {todayRecord ? (
-                todayRecord.clockOut 
-                  ? `Last session: clocked out at ${todayRecord.clockOut}`
-                  : `Active session: clocked in at ${todayRecord.clockIn}`
-              ) : 'Not clocked in yet today'}
-            </div>
-          </Card>
-        </Col>
-
-        {/* Monthly Logs Card */}
-        <Col xs={24} lg={16}>
-          <Card
-            title="My Monthly Attendance"
-            bordered={false}
-            style={{ borderRadius: '24px', minHeight: '240px' }}
-            extra={
-              <Space>
-                <Select
-                  value={month}
-                  onChange={(v) => setMonth(v)}
-                  style={{ width: 120 }}
-                  options={Array.from({ length: 12 }, (_, i) => ({
-                    value: i + 1,
-                    label: new Date(0, i).toLocaleString('en', { month: 'long' })
-                  }))}
+                <Table
+                  dataSource={getGroupedHistory()}
+                  columns={historyColumns}
+                  rowKey="key"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                  size="small"
                 />
-                <Select
-                  value={year}
-                  onChange={(v) => setYear(v)}
-                  style={{ width: 90 }}
-                  options={[
-                    { value: 2026, label: '2026' },
-                    { value: 2025, label: '2025' }
-                  ]}
-                />
-              </Space>
-            }
-          >
-            <Table
-              dataSource={getGroupedHistory()}
-              columns={historyColumns}
-              rowKey="key"
-              loading={loading}
-              pagination={{ pageSize: 3 }}
-              size="small"
-            />
-          </Card>
-        </Col>
-      </Row>
+              </Card>
 
-      {/* HR Master Logger View */}
-      {isHR && (
-        <Card
-          title="Date-wise Master logs (HR View)"
-          bordered={false}
-          style={{ borderRadius: '24px' }}
-          extra={
-            <DatePicker
-              value={searchDate ? dayjs(searchDate) : undefined}
-              onChange={(date) => setSearchDate(date ? date.format('YYYY-MM-DD') : '')}
-              style={{ borderRadius: '8px' }}
-            />
-          }
-        >
-          <Table
-            dataSource={getGroupedMaster()}
-            columns={masterColumns}
-            rowKey="key"
-            loading={masterLoading}
-            pagination={{ pageSize: 5 }}
-            size="small"
-          />
-        </Card>
-      )}
-    </div>
+              {/* HR Master Logger View */}
+              {isHR && (
+                <Card
+                  title="Date-wise Master logs (HR View)"
+                  bordered={false}
+                  style={{ borderRadius: '24px' }}
+                  extra={
+                    <DatePicker
+                      value={searchDate ? dayjs(searchDate) : undefined}
+                      onChange={(date) => setSearchDate(date ? date.format('YYYY-MM-DD') : '')}
+                      style={{ borderRadius: '8px' }}
+                    />
+                  }
+                >
+                  <Table
+                    dataSource={getGroupedMaster()}
+                    columns={masterColumns}
+                    rowKey="key"
+                    loading={masterLoading}
+                    pagination={{ pageSize: 5 }}
+                    size="small"
+                  />
+                </Card>
+              )}
+            </div>
+          )
+        },
+        {
+          key: 'regularization',
+          label: 'Attendance Regularization',
+          children: (
+            <div style={{ marginTop: '12px' }}>
+              <RegularizationTab employeeId={employeeId || ''} email={email || ''} roles={roles} />
+            </div>
+          )
+        }
+      ]}
+    />
   );
 }

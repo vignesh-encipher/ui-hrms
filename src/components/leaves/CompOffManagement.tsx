@@ -116,7 +116,7 @@ export default function CompOffManagement({ employeeId, roles }: CompOffManageme
       setIsModalOpen(false);
       form.resetFields();
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     } finally {
       setSubmitting(false);
@@ -127,7 +127,7 @@ export default function CompOffManagement({ employeeId, roles }: CompOffManageme
     try {
       await approveCompOffRequest(id, userRole, 'Approved');
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     }
   };
@@ -136,7 +136,7 @@ export default function CompOffManagement({ employeeId, roles }: CompOffManageme
     try {
       await rejectCompOffRequest(id, userRole, 'Rejected');
       loadData();
-    } catch (err: any) {
+    } catch {
       // Handled globally
     }
   };
