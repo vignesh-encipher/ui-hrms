@@ -14,7 +14,8 @@ import {
   Descriptions,
   message,
   Popconfirm,
-  DatePicker
+  DatePicker,
+  Upload
 } from 'antd';
 import {
   SearchOutlined,
@@ -22,7 +23,8 @@ import {
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  UploadOutlined
 } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
@@ -74,7 +76,53 @@ export default function EmployeesPage() {
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<any>(null);
+
   const [form] = Form.useForm();
+
+  const downloadTemplate = async () => {
+    try {
+      const response = await API.get('/employees/template', {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'employees_template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      message.error('Failed to download template.');
+    }
+  };
+
+  const handleBulkUpload = async (info: any) => {
+    const file = info.file;
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      setUploading(true);
+      setBulkResult(null);
+      const res = await API.post('/employees/upload-bulk', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      setBulkResult(res.data);
+      message.success(`Bulk upload completed: ${res.data.successCount} successful, ${res.data.failCount} failed.`);
+      loadData();
+      API.get('/employees/list').then((res) => setManagers(res.data)).catch(() => {});
+    } catch (err: any) {
+      message.error(err.response?.data?.message || 'Failed to upload file.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const loadData = () => {
     setLoading(true);
@@ -151,6 +199,7 @@ export default function EmployeesPage() {
       setIsModalOpen(false);
       form.resetFields();
       loadData();
+      API.get('/employees/list').then((res) => setManagers(res.data)).catch(() => {});
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error processing request');
     } finally {
@@ -163,6 +212,7 @@ export default function EmployeesPage() {
       await API.delete(`/employees/${id}`);
       message.success('Employee deleted successfully!');
       loadData();
+      API.get('/employees/list').then((res) => setManagers(res.data)).catch(() => {});
     } catch (err: any) {
       message.error(err.response?.data?.message || 'Error deleting employee');
     }
@@ -271,14 +321,23 @@ export default function EmployeesPage() {
               Export CSV
             </Button>
             {isHR && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleOpenAdd}
-                style={{ borderRadius: '12px', background: '#0284c7' }}
-              >
-                Add Employee
-              </Button>
+              <>
+                <Button
+                  icon={<UploadOutlined />}
+                  onClick={() => setIsBulkModalOpen(true)}
+                  style={{ borderRadius: '12px' }}
+                >
+                  Bulk Upload
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleOpenAdd}
+                  style={{ borderRadius: '12px', background: '#0284c7' }}
+                >
+                  Add Employee
+                </Button>
+              </>
             )}
           </Space>
         </div>
@@ -497,6 +556,76 @@ export default function EmployeesPage() {
             <Descriptions.Item label="Emergency Contact">{viewingEmployee.emergencyContact || '-'}</Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      <Modal
+        title="Bulk Employee Upload"
+        open={isBulkModalOpen}
+        onCancel={() => {
+          setIsBulkModalOpen(false);
+          setBulkResult(null);
+        }}
+        footer={[
+          <Button
+            key="close"
+            onClick={() => {
+              setIsBulkModalOpen(false);
+              setBulkResult(null);
+            }}
+          >
+            Close
+          </Button>
+        ]}
+        width={600}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0' }}>
+          <div>
+            <p>1. Download the Excel template below to structure your data correctly:</p>
+            <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>
+              Download Template
+            </Button>
+          </div>
+          <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px' }}>
+            <p>2. Fill in employee details and upload the file below:</p>
+            <Upload.Dragger
+              name="file"
+              multiple={false}
+              showUploadList={false}
+              beforeUpload={(file) => {
+                const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.name.endsWith('.xlsx');
+                if (!isExcel) {
+                  message.error('You can only upload Excel (.xlsx) files!');
+                }
+                return isExcel || Upload.LIST_IGNORE;
+              }}
+              customRequest={handleBulkUpload}
+              disabled={uploading}
+            >
+              <p className="ant-upload-drag-icon">
+                <UploadOutlined style={{ fontSize: '32px', color: '#0284c7' }} />
+              </p>
+              <p className="ant-upload-text">Click or drag Excel template file to this area to upload</p>
+              <p className="ant-upload-hint">Only .xlsx files are supported.</p>
+            </Upload.Dragger>
+          </div>
+
+          {bulkResult && (
+            <Card title="Upload Summary" size="small" style={{ marginTop: '10px', borderRadius: '12px' }}>
+              <p style={{ color: '#059669', fontWeight: 'bold', margin: '4px 0' }}>✓ Created Successfully: {bulkResult.successCount}</p>
+              <p style={{ color: '#dc2626', fontWeight: 'bold', margin: '4px 0' }}>✗ Failed: {bulkResult.failCount}</p>
+              {bulkResult.errors && bulkResult.errors.length > 0 && (
+                <div style={{ marginTop: '10px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#6b7280' }}>Errors Details:</div>
+                  <ul style={{ maxHeight: '150px', overflowY: 'auto', paddingLeft: '20px', margin: '4px 0 0 0', fontSize: '11px', color: '#ef4444' }}>
+                    {bulkResult.errors.map((err: string, idx: number) => (
+                      <li key={idx}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
       </Modal>
     </div>
   );
