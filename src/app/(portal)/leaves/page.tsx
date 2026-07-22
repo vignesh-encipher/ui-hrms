@@ -90,24 +90,20 @@ export default function LeavesPage() {
           await API.post(`/compoff/approve/${selectedHrRequest.id}`, null, {
             params: { approvedBy: employeeId, remarks: hrRemarks },
           });
-          message.success('Comp-Off request approved successfully!');
         } else {
           await API.post(`/compoff/reject/${selectedHrRequest.id}`, null, {
             params: { approvedBy: employeeId, remarks: hrRemarks },
           });
-          message.success('Comp-Off request rejected!');
         }
       } else {
         if (action === 'approve') {
           await API.post(`/leaves/approve/${selectedHrRequest.id}`, null, {
             params: { role: userRole, remarks: hrRemarks },
           });
-          message.success('Leave approved successfully!');
         } else {
           await API.post(`/leaves/reject/${selectedHrRequest.id}`, null, {
             params: { role: userRole, remarks: hrRemarks },
           });
-          message.success('Leave rejected!');
         }
       }
       setIsHrActionModalOpen(false);
@@ -115,7 +111,7 @@ export default function LeavesPage() {
       setHrRemarks('');
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error processing request');
+      // Handled globally
     } finally {
       setActionLoading(false);
     }
@@ -181,12 +177,11 @@ export default function LeavesPage() {
         endDate: values.endDate ? values.endDate.format('YYYY-MM-DD') : null,
         reason: values.reason,
       });
-      message.success('Leave applied successfully!');
       setIsOpen(false);
       form.resetFields();
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error applying leave');
+      // Handled globally
     } finally {
       setSubmitting(false);
     }
@@ -198,11 +193,10 @@ export default function LeavesPage() {
       await API.post(`/leaves/approve/${id}`, null, {
         params: { role: userRole, remarks: rem },
       });
-      message.success('Leave approved successfully!');
       setRemarksMap(prev => ({ ...prev, [id]: '' }));
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error processing request');
+      // Handled globally
     }
   };
 
@@ -212,11 +206,10 @@ export default function LeavesPage() {
       await API.post(`/leaves/reject/${id}`, null, {
         params: { role: userRole, remarks: rem },
       });
-      message.success('Leave rejected!');
       setRemarksMap(prev => ({ ...prev, [id]: '' }));
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error processing request');
+      // Handled globally
     }
   };
 

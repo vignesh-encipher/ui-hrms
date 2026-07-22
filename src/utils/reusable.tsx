@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
-import { Button, notification } from 'antd';
+import { Button } from 'antd';
+import { notification } from '@/utils/antdStatic';
 
 export const getResponePopup = (res: any, showMore = false) => {
   const notificationKey = "global-response-notification";
@@ -63,6 +66,23 @@ export const getResponePopup = (res: any, showMore = false) => {
         duration: 2,
       });
     default:
+      const msg = res?.data?.message || res?.message;
+      if (msg) {
+        const isError = res?.status >= 400 || res?.data?.status === 'error' || String(res?.status).startsWith('5') || String(res?.status).startsWith('4');
+        if (isError) {
+          notification.error({
+            key: notificationKey,
+            message: msg,
+            duration: 3,
+          });
+        } else {
+          notification.info({
+            key: notificationKey,
+            message: msg,
+            duration: 2,
+          });
+        }
+      }
       break;
   }
 };

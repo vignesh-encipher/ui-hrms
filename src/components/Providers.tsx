@@ -3,7 +3,9 @@
 import React, { useEffect } from 'react';
 import { Provider, useSelector } from 'react-redux';
 import { store, RootState } from '@/store';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { ConfigProvider, App, theme as antdTheme } from 'antd';
+
+import { AntdStaticHelper } from '@/utils/antdStatic';
 
 function AntdConfigWrapper({ children }: { children: React.ReactNode }) {
   const mode = useSelector((state: RootState) => state.theme.mode);
@@ -26,7 +28,10 @@ function AntdConfigWrapper({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      {children}
+      <App>
+        <AntdStaticHelper />
+        {children}
+      </App>
     </ConfigProvider>
   );
 }

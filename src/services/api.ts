@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { store } from '@/store';
 import { logout, updateToken } from '@/store/authSlice';
-import { notification } from 'antd';
+import { notification } from '@/utils/antdStatic';
 
 const API = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "https://be-hrms-x40s.onrender.com",

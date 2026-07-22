@@ -113,12 +113,11 @@ export default function CompOffManagement({ employeeId, roles }: CompOffManageme
       };
 
       await submitCompOffRequest(payload);
-      message.success('Comp Off request submitted successfully!');
       setIsModalOpen(false);
       form.resetFields();
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error submitting request');
+      // Handled globally
     } finally {
       setSubmitting(false);
     }
@@ -127,20 +126,18 @@ export default function CompOffManagement({ employeeId, roles }: CompOffManageme
   const handleApprove = async (id: string) => {
     try {
       await approveCompOffRequest(id, userRole, 'Approved');
-      message.success('Comp Off request approved!');
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error approving request');
+      // Handled globally
     }
   };
 
   const handleReject = async (id: string) => {
     try {
       await rejectCompOffRequest(id, userRole, 'Rejected');
-      message.success('Comp Off request rejected!');
       loadData();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error rejecting request');
+      // Handled globally
     }
   };
 
