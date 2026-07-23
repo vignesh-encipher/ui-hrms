@@ -15,7 +15,8 @@ import {
   CarryOutOutlined,
   ClusterOutlined,
   DollarOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -44,6 +45,7 @@ export default function Sidebar() {
     { key: '/attendance', label: 'Attendance', icon: <CalendarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/leaves', label: 'Leaves', icon: <CarryOutOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/payroll', label: 'Payroll', icon: <DollarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
+    { key: '/chat', label: 'Chat & Comm', icon: <MessageOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/profile', label: 'My Profile', icon: <UserOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
   ];
 
