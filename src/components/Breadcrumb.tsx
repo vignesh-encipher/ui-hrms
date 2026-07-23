@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
 
 export default function Breadcrumb() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const paths = pathname.split('/').filter(Boolean);
 
   if (paths.length === 0) return null;

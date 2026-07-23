@@ -26,6 +26,7 @@ import {
   message,
   Tag,
   Select,
+  Dropdown,
 } from "antd";
 import {
   FiSearch,
@@ -83,6 +84,9 @@ interface ChatChannel {
   avatar?: string;
   isMember: boolean;
   memberCount: number;
+  unreadCount?: number;
+  lastMessage?: string;
+  lastMessageTime?: string;
 }
 
 interface Reaction {
@@ -138,6 +142,10 @@ export default function ChatPage() {
   const [isSearchingInChat, setIsSearchingInChat] = useState<boolean>(false);
   const [inputText, setInputText] = useState<string>("");
   const [reconnectKey, setReconnectKey] = useState<number>(0);
+
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [isNewChatModalVisible, setIsNewChatModalVisible] = useState<boolean>(false);
+  const [newChatSearch, setNewChatSearch] = useState<string>("");
 
   // Modals & Drawers
   const [isChannelModalVisible, setIsChannelModalVisible] =
@@ -200,6 +208,7 @@ export default function ChatPage() {
   // Load baseline data
   useEffect(() => {
     fetchUsers();
+    fetchConversations();
     fetchChannels();
   }, []);
 
@@ -229,6 +238,9 @@ export default function ChatPage() {
     };
 
     ws.onclose = () => {
+      if (wsRef.current !== ws) {
+        return;
+      }
       console.log("WebSocket disconnected, reconnecting in 5s...");
       setTimeout(() => {
         if (token) setReconnectKey((prev) => prev + 1);
@@ -236,6 +248,9 @@ export default function ChatPage() {
     };
 
     return () => {
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
       ws.close();
     };
   }, [token, reconnectKey]);
@@ -250,6 +265,22 @@ export default function ChatPage() {
     if (!activeConversation) return;
     fetchMessages(activeConversation.id);
     fetchSharedAttachments(activeConversation.id);
+
+    API.post(`/chat/conversations/${activeConversation.id}/read`).catch(() => {});
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.conversationId === activeConversation.id
+          ? { ...c, unreadCount: 0 }
+          : c
+      )
+    );
+    setChannels((prev) =>
+      prev.map((c) =>
+        c.id === activeConversation.id
+          ? { ...c, unreadCount: 0 }
+          : c
+      )
+    );
 
     // Clear typing indicators for this channel
     setTypingUsers((prev) => {
@@ -287,6 +318,15 @@ export default function ChatPage() {
       setChannels(res.data);
     } catch (err) {
       message.error("Failed to load channels");
+    }
+  };
+
+  const fetchConversations = async () => {
+    try {
+      const res = await API.get("/chat/conversations");
+      setConversations(res.data || []);
+    } catch (err) {
+      console.error("Failed to load active conversations", err);
     }
   };
 
@@ -341,7 +381,55 @@ export default function ChatPage() {
             return [...prev, newMsg];
           });
           if (newMsg.senderId !== currentUserId) {
-            sendReadReceipt(newMsg.id, activeConversationRef.current.id);
+            API.post(`/chat/conversations/${newMsg.conversationId}/read`).catch(() => {});
+          }
+        } else {
+          const isDm = newMsg.conversationId.includes("_");
+          if (isDm) {
+            setConversations((prev) => {
+              const exists = prev.some((c) => c.conversationId === newMsg.conversationId);
+              if (exists) {
+                return prev.map((c) => {
+                  if (c.conversationId === newMsg.conversationId) {
+                    return {
+                      ...c,
+                      lastMessage: newMsg.message,
+                      lastMessageTime: newMsg.createdAt,
+                      unreadCount: c.unreadCount + 1,
+                    };
+                  }
+                  return c;
+                });
+              } else {
+                fetchConversations();
+                return prev;
+              }
+            });
+          } else {
+            setChannels((prev) => {
+              const exists = prev.some((c) => c.id === newMsg.conversationId);
+              if (exists) {
+                const updated = prev.map((c) => {
+                  if (c.id === newMsg.conversationId) {
+                    return {
+                      ...c,
+                      lastMessage: newMsg.message,
+                      lastMessageTime: newMsg.createdAt,
+                      unreadCount: (c.unreadCount || 0) + 1,
+                    };
+                  }
+                  return c;
+                });
+                return updated.sort((c1, c2) => {
+                  const t1 = c1.lastMessageTime ? new Date(c1.lastMessageTime).getTime() : 0;
+                  const t2 = c2.lastMessageTime ? new Date(c2.lastMessageTime).getTime() : 0;
+                  return t2 - t1;
+                });
+              } else {
+                fetchChannels();
+                return prev;
+              }
+            });
           }
         }
         break;
@@ -370,6 +458,40 @@ export default function ChatPage() {
       case "PRESENCE":
         const { userId, status } = event;
         setOnlineStatuses((prev) => ({ ...prev, [userId]: status }));
+        break;
+
+      case "CONVERSATION_READ":
+        const { conversationId: readConvId, readerId } = event;
+        if (readerId === currentUserId) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.conversationId === readConvId
+                ? { ...c, unreadCount: 0 }
+                : c
+            )
+          );
+          setChannels((prev) =>
+            prev.map((c) =>
+              c.id === readConvId
+                ? { ...c, unreadCount: 0 }
+                : c
+            )
+          );
+        }
+        if (activeConversationRef.current && activeConversationRef.current.id === readConvId) {
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.senderId !== readerId && (!m.readBy || !m.readBy.includes(readerId))) {
+                return { ...m, readBy: [...(m.readBy || []), readerId] };
+              }
+              return m;
+            })
+          );
+        }
+        break;
+
+      case "CHANNEL_CREATED":
+        fetchChannels();
         break;
 
       case "READ_RECEIPT":
@@ -464,6 +586,7 @@ export default function ChatPage() {
         if (prev.some((m) => m.id === savedMsg.id)) return prev;
         return [...prev, savedMsg];
       });
+      fetchConversations();
     } catch (err) {
       message.error("Failed to send message");
     }
@@ -521,7 +644,11 @@ export default function ChatPage() {
 
   const handleAddReaction = async (messageId: string, emoji: string) => {
     try {
-      await API.post(`/chat/messages/${messageId}/react`, { emoji });
+      const msgObj = messages.find(m => m.id === messageId);
+      const existingReaction = msgObj?.reactions?.find(r => r.userId === currentUserId && r.emoji === emoji);
+      
+      const emojiToSend = existingReaction ? "" : emoji;
+      await API.post(`/chat/messages/${messageId}/react`, { emoji: emojiToSend });
     } catch (err) {
       message.error("Reaction failed");
     }
@@ -569,6 +696,7 @@ export default function ChatPage() {
         name: values.name,
         description: values.description,
         type: values.isPrivate ? "PRIVATE" : "PUBLIC",
+        initialMembers: values.initialMembers || [],
       });
       message.success("Channel created successfully!");
       setIsChannelModalVisible(false);
@@ -826,12 +954,102 @@ export default function ChatPage() {
     return `${sorted[0]}_${sorted[1]}`;
   };
 
+  const getMoreOptionsItems = () => {
+    if (!activeConversation) return [];
+    
+    if (activeConversation.type === "channel") {
+      const items = [];
+      if (isCurrentChannelAdmin) {
+        items.push({
+          key: "rename",
+          label: "Rename Channel",
+          icon: <FiEdit3 />,
+          onClick: () => {
+            editChannelForm.setFieldsValue({
+              name: activeConversation.name,
+              description: channels.find(c => c.id === activeConversation.id)?.description || "",
+              isPrivate: channels.find(c => c.id === activeConversation.id)?.type === "PRIVATE",
+            });
+            setIsEditChannelModalVisible(true);
+          }
+        });
+        items.push({
+          key: "add_members",
+          label: "Add Members",
+          icon: <FiPlus />,
+          onClick: () => setIsInfoDrawerVisible(true),
+        });
+      }
+      items.push({
+        key: "leave",
+        label: "Leave Channel",
+        icon: <FiLogOut />,
+        danger: true,
+        onClick: () => {
+          Modal.confirm({
+            title: "Leave Channel",
+            content: "Are you sure you want to leave this channel?",
+            okText: "Yes, Leave",
+            cancelText: "Cancel",
+            onOk: handleLeaveChannel,
+          });
+        }
+      });
+      if (isCurrentChannelAdmin) {
+        items.push({
+          key: "delete",
+          label: "Delete Channel",
+          icon: <FiTrash2 />,
+          danger: true,
+          onClick: () => {
+            Modal.confirm({
+              title: "Delete Channel",
+              content: "Are you sure you want to delete this channel? This action cannot be undone.",
+              okText: "Yes, Delete",
+              cancelText: "Cancel",
+              onOk: handleDeleteChannel,
+            });
+          }
+        });
+      }
+      return items;
+    } else {
+      return [
+        {
+          key: "profile",
+          label: "View Profile",
+          icon: <FiInfo />,
+          onClick: () => {
+            const parts = activeConversation.id.split("_");
+            const targetId = parts[0] === currentUserId ? parts[1] : parts[0];
+            const target = users.find((u) => u.id === targetId);
+            if (target) {
+              setSelectedUserForProfile(target);
+              setIsInfoDrawerVisible(true);
+            }
+          }
+        }
+      ];
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
   const filteredChannels = channels.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const filteredConversations = conversations.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredNewChatUsers = users.filter((u) => {
+    const term = newChatSearch.toLowerCase();
+    return (
+      u.name.toLowerCase().includes(term) ||
+      (u.employeeId && u.employeeId.toLowerCase().includes(term)) ||
+      (u.email && u.email.toLowerCase().includes(term))
+    );
+  });
 
   const filteredMessages = messages.filter((m) => {
     if (!messageSearchQuery) return true;
@@ -890,7 +1108,10 @@ export default function ChatPage() {
               type="primary"
               shape="circle"
               icon={<FiPlus />}
-              onClick={() => setIsChannelModalVisible(true)}
+              onClick={() => {
+                channelForm.setFieldsValue({ initialMembers: [currentUserId] });
+                setIsChannelModalVisible(true);
+              }}
             />
           </div>
 
@@ -931,130 +1152,220 @@ export default function ChatPage() {
                 </span>
               }
               dataSource={filteredChannels}
-              renderItem={(channel) => (
-                <List.Item
-                  onClick={() =>
-                    setActiveConversation({
-                      id: channel.id,
-                      type: "channel",
-                      name: channel.name,
-                      avatar: channel.avatar,
-                    })
-                  }
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                    background:
-                      activeConversation?.id === channel.id
-                        ? "#e6f7ff"
-                        : "transparent",
-                    border: "none",
-                    margin: "2px 0",
-                  }}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar
-                        icon={<FiUsers />}
-                        src={channel.avatar}
-                        style={{ backgroundColor: "#0ea5e9" }}
-                      />
-                    }
-                    title={
-                      <div
-                        style={{
-                          fontWeight: "semibold",
-                          display: "flex",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <span>{channel.name}</span>
-                        {channel.type === "PRIVATE" && (
-                          <Tag
-                            color="warning"
-                            style={{ fontSize: "10px", margin: 0 }}
-                          >
-                            Private
-                          </Tag>
-                        )}
-                      </div>
-                    }
-                    description={`${channel.memberCount || 1} members`}
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-
-          {/* Direct Messages List */}
-          {(activeTab === "all" || activeTab === "direct") && (
-            <List
-              header={
-                <span
-                  style={{
-                    padding: "0 12px",
-                    fontSize: "12px",
-                    color: "#8c8c8c",
-                    fontWeight: "bold",
-                  }}
-                >
-                  DIRECT MESSAGES
-                </span>
-              }
-              dataSource={filteredUsers}
-              renderItem={(user) => {
-                const convId = getDMConversationId(user.id);
-                const status = onlineStatuses[user.id] || "offline";
+              renderItem={(channel) => {
+                const isSelected = activeConversation?.id === channel.id;
                 return (
                   <List.Item
                     onClick={() =>
                       setActiveConversation({
-                        id: convId,
-                        type: "dm",
-                        name: user.name,
-                        avatar: user.photo,
-                        status,
+                        id: channel.id,
+                        type: "channel",
+                        name: channel.name,
+                        avatar: channel.avatar,
                       })
                     }
                     style={{
                       padding: "8px 12px",
                       borderRadius: "8px",
                       cursor: "pointer",
-                      background:
-                        activeConversation?.id === convId
-                          ? "#e6f7ff"
-                          : "transparent",
+                      background: isSelected ? "#e6f7ff" : "transparent",
                       border: "none",
                       margin: "2px 0",
                     }}
                   >
                     <List.Item.Meta
                       avatar={
-                        <Badge
-                          dot
-                          status={
-                            status === "online"
-                              ? "success"
-                              : status === "away"
-                                ? "warning"
-                                : "default"
-                          }
-                        >
-                          <Avatar
-                            icon={<FiUser />}
-                            src={user.photo}
-                            style={{ backgroundColor: "#10b981" }}
-                          />
-                        </Badge>
+                        <Avatar
+                          icon={<FiUsers />}
+                          src={channel.avatar}
+                          style={{ backgroundColor: "#0ea5e9" }}
+                        />
                       }
-                      title={user.name}
-                      description={user.designationId || "Colleague"}
+                      title={
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <Space>
+                            <span style={{ fontWeight: (channel.unreadCount || 0) > 0 ? "bold" : "normal" }}>
+                              {channel.name}
+                            </span>
+                            {channel.type === "PRIVATE" && (
+                              <Tag
+                                color="warning"
+                                style={{ fontSize: "10px", margin: 0, padding: "0 4px" }}
+                              >
+                                Private
+                              </Tag>
+                            )}
+                          </Space>
+                          {channel.lastMessageTime && (
+                            <span style={{ fontSize: "10px", color: "#8c8c8c", fontWeight: "normal" }}>
+                              {new Date(channel.lastMessageTime).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      }
+                      description={
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span
+                            style={{
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                              whiteSpace: "nowrap",
+                              maxWidth: "140px",
+                              fontSize: "12px",
+                              color: (channel.unreadCount || 0) > 0 ? "#111b21" : "#8c8c8c",
+                              fontWeight: (channel.unreadCount || 0) > 0 ? "600" : "normal",
+                            }}
+                          >
+                            {channel.lastMessage || `${channel.memberCount || 1} members`}
+                          </span>
+                          {(channel.unreadCount || 0) > 0 && (
+                            <Badge
+                              count={channel.unreadCount}
+                              style={{ backgroundColor: "#10b981" }}
+                            />
+                          )}
+                        </div>
+                      }
                     />
                   </List.Item>
                 );
               }}
             />
+          )}
+
+          {/* Direct Messages List */}
+          {(activeTab === "all" || activeTab === "direct") && (
+            <>
+              {filteredConversations.length === 0 ? (
+                <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                  <div style={{ color: "#8c8c8c", marginBottom: "12px", fontSize: "13px" }}>
+                    No conversations yet. Start a new chat.
+                  </div>
+                  <Button
+                    type="primary"
+                    onClick={() => setIsNewChatModalVisible(true)}
+                  >
+                    New Chat
+                  </Button>
+                </div>
+              ) : (
+                <List
+                  header={
+                    <div
+                      style={{
+                        padding: "0 12px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#8c8c8c",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        DIRECT MESSAGES
+                      </span>
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<FiPlus />}
+                        onClick={() => setIsNewChatModalVisible(true)}
+                        style={{ color: "#10b981" }}
+                      />
+                    </div>
+                  }
+                  dataSource={filteredConversations}
+                  renderItem={(c) => {
+                    const status = onlineStatuses[c.otherUserId] || c.status || "offline";
+                    const isSelected = activeConversation?.id === c.conversationId;
+                    return (
+                      <List.Item
+                        onClick={() =>
+                          setActiveConversation({
+                            id: c.conversationId,
+                            type: "dm",
+                            name: c.name,
+                            avatar: c.avatar,
+                            status,
+                          })
+                        }
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          background: isSelected ? "#e6f7ff" : "transparent",
+                          border: "none",
+                          margin: "2px 0",
+                        }}
+                      >
+                        <List.Item.Meta
+                          avatar={
+                            <Badge
+                              dot
+                              status={
+                                status === "online"
+                                  ? "success"
+                                  : status === "away"
+                                    ? "warning"
+                                    : "default"
+                              }
+                            >
+                              <Avatar
+                                icon={<FiUser />}
+                                src={c.avatar}
+                                style={{ backgroundColor: "#10b981" }}
+                              />
+                            </Badge>
+                          }
+                          title={
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontWeight: c.unreadCount > 0 ? "bold" : "normal" }}>{c.name}</span>
+                              {c.lastMessageTime && (
+                                <span style={{ fontSize: "10px", color: "#8c8c8c", fontWeight: "normal" }}>
+                                  {new Date(c.lastMessageTime).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              )}
+                            </div>
+                          }
+                          description={
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span
+                                style={{
+                                  textOverflow: "ellipsis",
+                                  overflow: "hidden",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "140px",
+                                  fontSize: "12px",
+                                  color: c.unreadCount > 0 ? "#111b21" : "#8c8c8c",
+                                  fontWeight: c.unreadCount > 0 ? "600" : "normal",
+                                }}
+                              >
+                                {c.lastMessage || "No messages"}
+                              </span>
+                              {c.unreadCount > 0 && (
+                                <Badge
+                                  count={c.unreadCount}
+                                  style={{ backgroundColor: "#10b981" }}
+                                />
+                              )}
+                            </div>
+                          }
+                        />
+                      </List.Item>
+                    );
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
       </Sider>
@@ -1129,7 +1440,7 @@ export default function ChatPage() {
                     }}
                   >
                     {activeConversation.type === "channel"
-                      ? "Channel Room"
+                      ? `${channelMembers.length} members`
                       : activeConversation.status || "offline"}
                   </span>
                 </div>
@@ -1138,22 +1449,6 @@ export default function ChatPage() {
               <div
                 style={{ display: "flex", alignItems: "center", gap: "8px" }}
               >
-                <Tooltip title="Voice Call (Coming Soon)">
-                  <Button
-                    type="text"
-                    shape="circle"
-                    icon={<FiPhone />}
-                    disabled
-                  />
-                </Tooltip>
-                <Tooltip title="Video Call (Coming Soon)">
-                  <Button
-                    type="text"
-                    shape="circle"
-                    icon={<FiVideo />}
-                    disabled
-                  />
-                </Tooltip>
                 <Button
                   type="text"
                   shape="circle"
@@ -1179,6 +1474,17 @@ export default function ChatPage() {
                     }
                   }}
                 />
+                <Dropdown
+                  menu={{ items: getMoreOptionsItems() }}
+                  placement="bottomRight"
+                  trigger={["click"]}
+                >
+                  <Button
+                    type="text"
+                    shape="circle"
+                    icon={<FiMoreVertical />}
+                  />
+                </Dropdown>
               </div>
             </div>
 
@@ -1425,30 +1731,79 @@ export default function ChatPage() {
                               ))}
                           </div>
 
-                          {msg.reactions && msg.reactions.length > 0 && (
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "4px",
-                                marginTop: "6px",
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              {msg.reactions.map((r, i) => (
-                                <span
-                                  key={i}
-                                  style={{
-                                    background: "rgba(0,0,0,0.05)",
-                                    padding: "2px 6px",
-                                    borderRadius: "10px",
-                                    fontSize: "11px",
-                                  }}
-                                >
-                                  {r.emoji}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          {(() => {
+                            const reactionGroups = (msg.reactions || []).reduce((acc: { [emoji: string]: string[] }, r) => {
+                              if (!acc[r.emoji]) acc[r.emoji] = [];
+                              if (!acc[r.emoji].includes(r.userId)) {
+                                acc[r.emoji].push(r.userId);
+                              }
+                              return acc;
+                            }, {});
+
+                            return (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "6px",
+                                  marginTop: "6px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {Object.entries(reactionGroups).map(([emoji, userIds]) => {
+                                  const hasReacted = userIds.includes(currentUserId);
+                                  const userNames = userIds.map(uid => {
+                                    if (uid === currentUserId) return "You";
+                                    const u = users.find(user => user.id === uid);
+                                    return u ? u.name : "Unknown Colleague";
+                                  });
+                                  
+                                  const popoverContent = (
+                                    <div style={{ padding: "4px 8px" }}>
+                                      <div style={{ fontWeight: "bold", marginBottom: "4px", fontSize: "13px" }}>
+                                        {emoji} Reacted by:
+                                      </div>
+                                      <ul style={{ paddingLeft: "16px", margin: 0, fontSize: "12px", color: "#595959" }}>
+                                        {userNames.map((name, idx) => (
+                                          <li key={idx}>{name}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  );
+
+                                  return (
+                                    <Popover
+                                      key={emoji}
+                                      content={popoverContent}
+                                      trigger="hover"
+                                      placement="top"
+                                    >
+                                      <span
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAddReaction(msg.id, emoji);
+                                        }}
+                                        style={{
+                                          background: hasReacted ? "#d9fdd3" : "rgba(0,0,0,0.05)",
+                                          border: hasReacted ? "1px solid #10b981" : "1px solid transparent",
+                                          padding: "2px 8px",
+                                          borderRadius: "12px",
+                                          fontSize: "11px",
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                          transition: "all 0.2s",
+                                        }}
+                                      >
+                                        <span>{emoji}</span>
+                                        <span style={{ fontWeight: "bold", opacity: 0.8 }}>{userIds.length}</span>
+                                      </span>
+                                    </Popover>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {!msg.deleted && (
@@ -1531,25 +1886,6 @@ export default function ChatPage() {
                                 </>
                               )}
 
-                              <Button
-                                type="link"
-                                size="small"
-                                style={{ padding: 0 }}
-                                onClick={() => handleToggleStar(msg.id)}
-                              >
-                                {msg.starredBy?.includes(currentUserId!)
-                                  ? "Unstar"
-                                  : "Star"}
-                              </Button>
-
-                              <Button
-                                type="link"
-                                size="small"
-                                style={{ padding: 0 }}
-                                onClick={() => handleTogglePin(msg.id)}
-                              >
-                                {msg.pinned ? "Unpin" : "Pin"}
-                              </Button>
                             </Space>
                           </div>
                         )}
@@ -2076,6 +2412,49 @@ export default function ChatPage() {
           </Form.Item>
 
           <Form.Item
+            name="initialMembers"
+            label="Select Members"
+          >
+            <Select
+              mode="multiple"
+              placeholder="Search by name, employee ID or email"
+              optionFilterProp="children"
+              filterOption={(input, option) => {
+                const label = (option?.label || "").toString().toLowerCase();
+                return label.includes(input.toLowerCase());
+              }}
+              style={{ width: "100%" }}
+            >
+              <Option
+                key={currentUserId}
+                value={currentUserId}
+                disabled
+                label={`${currentUserName || "You"} (Creator)`}
+              >
+                <Space>
+                  <Avatar size="small" />
+                  <span>{currentUserName || "You"} (Creator)</span>
+                </Space>
+              </Option>
+              {users.map((u) => (
+                <Option
+                  key={u.id}
+                  value={u.id}
+                  label={`${u.name} (${u.employeeId || ""} - ${u.email || ""})`}
+                >
+                  <Space>
+                    <Avatar size="small" src={u.photo} />
+                    <span>{u.name}</span>
+                    <span style={{ fontSize: "11px", opacity: 0.6 }}>
+                      ({u.employeeId || "No ID"} - {u.email})
+                    </span>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="isPrivate"
             label="Privacy Setting"
             valuePropName="checked"
@@ -2099,6 +2478,78 @@ export default function ChatPage() {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* New Chat Dialog Modal */}
+      <Modal
+        title="Start a new chat"
+        open={isNewChatModalVisible}
+        onCancel={() => {
+          setIsNewChatModalVisible(false);
+          setNewChatSearch("");
+        }}
+        footer={null}
+        styles={{ body: { maxHeight: "400px", overflowY: "auto" } }}
+      >
+        <Input
+          placeholder="Search by name, employee ID, or email..."
+          prefix={<FiSearch />}
+          value={newChatSearch}
+          onChange={(e) => setNewChatSearch(e.target.value)}
+          style={{ marginBottom: "16px" }}
+          allowClear
+        />
+        <List
+          dataSource={filteredNewChatUsers}
+          renderItem={(user) => {
+            const status = onlineStatuses[user.id] || "offline";
+            return (
+              <List.Item
+                onClick={() => {
+                  const convId = getDMConversationId(user.id);
+                  setActiveConversation({
+                    id: convId,
+                    type: "dm",
+                    name: user.name,
+                    avatar: user.photo,
+                    status,
+                  });
+                  setIsNewChatModalVisible(false);
+                  setNewChatSearch("");
+                }}
+                style={{
+                  cursor: "pointer",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  transition: "background 0.2s",
+                }}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <Badge
+                      dot
+                      status={
+                        status === "online"
+                          ? "success"
+                          : status === "away"
+                            ? "warning"
+                            : "default"
+                      }
+                    >
+                      <Avatar src={user.photo} icon={<FiUser />} />
+                    </Badge>
+                  }
+                  title={user.name}
+                  description={
+                    <span style={{ fontSize: "11px", opacity: 0.6 }}>
+                      {user.employeeId || "No ID"} • {user.email}
+                    </span>
+                  }
+                />
+              </List.Item>
+            );
+          }}
+        />
       </Modal>
 
       {/* Edit Channel Modal */}

@@ -12,7 +12,7 @@ const { Header: AntdHeader } = Layout;
 
 export default function Header() {
   const dispatch = useDispatch();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const { username, roles } = useSelector((state: RootState) => state.auth);
   const themeMode = useSelector((state: RootState) => state.theme.mode);
 

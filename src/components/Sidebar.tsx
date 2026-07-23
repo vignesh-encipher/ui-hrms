@@ -58,7 +58,7 @@ export default function Sidebar() {
     }));
 
   const getSelectedKey = () => {
-    const matched = filteredItems.find(item => pathname.startsWith(item.key));
+    const matched = filteredItems.find(item => pathname && pathname.startsWith(item.key));
     return matched ? [matched.key] : ['/dashboard'];
   };
 
