@@ -287,34 +287,13 @@ export default function ChatPage() {
 
   const playNotificationSound = () => {
     try {
-      const audioCtx = initAudioContext();
-      if (!audioCtx) return;
-
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
-      
-      const osc1 = audioCtx.createOscillator();
-      const gain1 = audioCtx.createGain();
-      osc1.connect(gain1);
-      gain1.connect(audioCtx.destination);
-      osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-      gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
-      gain1.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
-      osc1.start(audioCtx.currentTime);
-      osc1.stop(audioCtx.currentTime + 0.12);
-      
-      const osc2 = audioCtx.createOscillator();
-      const gain2 = audioCtx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioCtx.destination);
-      osc2.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
-      gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.08);
-      gain2.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.08 + 0.15);
-      osc2.start(audioCtx.currentTime + 0.08);
-      osc2.stop(audioCtx.currentTime + 0.08 + 0.15);
+      const audio = new Audio("/fahhhhh.mp3");
+      audio.volume = 0.4;
+      audio.play().catch((err) => {
+        console.warn("Failed to play notification audio file", err);
+      });
     } catch (err) {
-      console.error("Failed to play notification sound", err);
+      console.error("Audio playback error", err);
     }
   };
 
@@ -329,7 +308,6 @@ export default function ChatPage() {
   const showBrowserNotification = (senderName: string, messageText: string, conversationId: string) => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission !== "granted" || !notificationSettingsRef.current.browserNotificationsEnabled) return;
-    if (document.hasFocus()) return; // Don't show if active tab has focus
 
     const isDm = conversationId.includes("_");
     let title = senderName;
