@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import API from "@/services/api";
-import { getStorage } from "@/utils/storages";
+import { getStorage, setStorage } from "@/utils/storages";
 import {
   Layout,
   Input,
@@ -27,6 +27,7 @@ import {
   Tag,
   Select,
   Dropdown,
+  Switch,
 } from "antd";
 import {
   FiSearch,
@@ -55,6 +56,9 @@ import {
   FiX,
   FiSquare,
   FiLogOut,
+  FiVolume2,
+  FiVolumeX,
+  FiSettings,
 } from "react-icons/fi";
 import { MdPushPin } from "react-icons/md";
 
@@ -112,6 +116,13 @@ interface MessageType {
   readBy: string[];
   deliveredTo: string[];
   createdAt: string;
+}
+
+interface NotificationSettings {
+  soundEnabled: boolean;
+  browserNotificationsEnabled: boolean;
+  mutedAll: boolean;
+  mutedConversations: string[];
 }
 
 export default function ChatPage() {
@@ -194,8 +205,185 @@ export default function ChatPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Notification settings
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    soundEnabled: true,
+    browserNotificationsEnabled: false,
+    mutedAll: false,
+    mutedConversations: [],
+  });
+  const [isSettingsModalVisible, setIsSettingsModalVisible] = useState<boolean>(false);
+  const lastPlayTimeRef = useRef<number>(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const initAudioContext = () => {
+    if (typeof window === "undefined") return null;
+    if (!audioCtxRef.current) {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtxClass) {
+        audioCtxRef.current = new AudioCtxClass();
+      }
+    }
+    return audioCtxRef.current;
+  };
+
+  // Load settings when currentUserId changes
+  useEffect(() => {
+    if (!currentUserId) return;
+    const stored = getStorage(`chat_settings_${currentUserId}`);
+    if (stored) {
+      try {
+        setNotificationSettings(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, [currentUserId]);
+
+  const saveNotificationSettings = (settings: NotificationSettings) => {
+    setNotificationSettings(settings);
+    if (currentUserId) {
+      setStorage(`chat_settings_${currentUserId}`, JSON.stringify(settings));
+    }
+  };
+
+  // Request browser notification permission
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            saveNotificationSettings({
+              ...notificationSettings,
+              browserNotificationsEnabled: true,
+            });
+          }
+        });
+      } else if (Notification.permission === "granted") {
+        setNotificationSettings((prev) => {
+          const updated = { ...prev, browserNotificationsEnabled: true };
+          if (currentUserId) {
+            setStorage(`chat_settings_${currentUserId}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
+      }
+    }
+  }, [currentUserId]);
+
+  // Unlock Audio Context on first user interaction
+  useEffect(() => {
+    const resumeAudio = () => {
+      const audioCtx = initAudioContext();
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    };
+    window.addEventListener("click", resumeAudio);
+    window.addEventListener("keydown", resumeAudio);
+    return () => {
+      window.removeEventListener("click", resumeAudio);
+      window.removeEventListener("keydown", resumeAudio);
+    };
+  }, []);
+
+  const playNotificationSound = () => {
+    try {
+      const audioCtx = initAudioContext();
+      if (!audioCtx) return;
+
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+      gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
+      osc1.start(audioCtx.currentTime);
+      osc1.stop(audioCtx.currentTime + 0.12);
+      
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
+      gain2.gain.setValueAtTime(0.08, audioCtx.currentTime + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.08 + 0.15);
+      osc2.start(audioCtx.currentTime + 0.08);
+      osc2.stop(audioCtx.currentTime + 0.08 + 0.15);
+    } catch (err) {
+      console.error("Failed to play notification sound", err);
+    }
+  };
+
+  const playNotificationSoundThrottled = () => {
+    const now = Date.now();
+    if (now - lastPlayTimeRef.current > 1000) {
+      lastPlayTimeRef.current = now;
+      playNotificationSound();
+    }
+  };
+
+  const showBrowserNotification = (senderName: string, messageText: string, conversationId: string) => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted" || !notificationSettingsRef.current.browserNotificationsEnabled) return;
+    if (document.hasFocus()) return; // Don't show if active tab has focus
+
+    const isDm = conversationId.includes("_");
+    let title = senderName;
+    let body = messageText;
+
+    if (isDm) {
+      title = senderName;
+      body = messageText;
+    } else {
+      const channel = channelsRef.current.find((c) => c.id === conversationId);
+      title = channel ? `# ${channel.name}` : "Group Chat";
+      body = `${senderName}: ${messageText}`;
+    }
+
+    const notification = new Notification(title, {
+      body: body,
+      icon: "/logo.png",
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      if (isDm) {
+        const parts = conversationId.split("_");
+        const targetId = parts[0] === currentUserId ? parts[1] : parts[0];
+        const target = usersRef.current.find((u) => u.id === targetId);
+        if (target) {
+          setActiveConversation({
+            id: conversationId,
+            type: "dm",
+            name: target.name,
+            avatar: target.photo,
+            status: target.status,
+          });
+        }
+      } else {
+        const channel = channelsRef.current.find((c) => c.id === conversationId);
+        if (channel) {
+          setActiveConversation({
+            id: channel.id,
+            type: "channel",
+            name: channel.name,
+            avatar: channel.avatar,
+          });
+        }
+      }
+      notification.close();
+    };
+  };
+
   const activeConversationRef = useRef(activeConversation);
   const usersRef = useRef(users);
+  const channelsRef = useRef(channels);
+  const conversationsRef = useRef(conversations);
+  const notificationSettingsRef = useRef(notificationSettings);
 
   useEffect(() => {
     activeConversationRef.current = activeConversation;
@@ -204,6 +392,18 @@ export default function ChatPage() {
   useEffect(() => {
     usersRef.current = users;
   }, [users]);
+
+  useEffect(() => {
+    channelsRef.current = channels;
+  }, [channels]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
+    notificationSettingsRef.current = notificationSettings;
+  }, [notificationSettings]);
 
   // Load baseline data
   useEffect(() => {
@@ -372,15 +572,30 @@ export default function ChatPage() {
     switch (type) {
       case "CHAT_MESSAGE":
         const newMsg: MessageType = event.message;
-        if (
-          activeConversationRef.current &&
-          newMsg.conversationId === activeConversationRef.current.id
-        ) {
+        const isMsgFromOther = newMsg.senderId !== currentUserId;
+        const isOpen = activeConversationRef.current && newMsg.conversationId === activeConversationRef.current.id;
+
+        if (isMsgFromOther) {
+          const currentSettings = notificationSettingsRef.current;
+          const isMuted = currentSettings.mutedAll || currentSettings.mutedConversations.includes(newMsg.conversationId);
+          if (!isMuted) {
+            if (currentSettings.soundEnabled) {
+              playNotificationSoundThrottled();
+            }
+            if (!isOpen) {
+              const senderObj = usersRef.current.find((u) => u.id === newMsg.senderId);
+              const senderName = senderObj ? senderObj.name : "Unknown Colleague";
+              showBrowserNotification(senderName, newMsg.message, newMsg.conversationId);
+            }
+          }
+        }
+
+        if (isOpen) {
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
-          if (newMsg.senderId !== currentUserId) {
+          if (isMsgFromOther) {
             API.post(`/chat/conversations/${newMsg.conversationId}/read`).catch(() => {});
           }
         } else {
@@ -1012,8 +1227,26 @@ export default function ChatPage() {
           }
         });
       }
+      const isMuted = notificationSettings.mutedConversations.includes(activeConversation.id);
+      items.push({
+        key: "mute",
+        label: isMuted ? "Unmute Notifications" : "Mute Notifications",
+        icon: isMuted ? <FiVolume2 /> : <FiVolumeX />,
+        onClick: () => {
+          const list = notificationSettings.mutedConversations;
+          const newList = isMuted
+            ? list.filter((id) => id !== activeConversation.id)
+            : [...list, activeConversation.id];
+          saveNotificationSettings({
+            ...notificationSettings,
+            mutedConversations: newList,
+          });
+          message.success(isMuted ? "Notifications unmuted" : "Notifications muted");
+        }
+      });
       return items;
     } else {
+      const isMuted = notificationSettings.mutedConversations.includes(activeConversation.id);
       return [
         {
           key: "profile",
@@ -1027,6 +1260,22 @@ export default function ChatPage() {
               setSelectedUserForProfile(target);
               setIsInfoDrawerVisible(true);
             }
+          }
+        },
+        {
+          key: "mute",
+          label: isMuted ? "Unmute Notifications" : "Mute Notifications",
+          icon: isMuted ? <FiVolume2 /> : <FiVolumeX />,
+          onClick: () => {
+            const list = notificationSettings.mutedConversations;
+            const newList = isMuted
+              ? list.filter((id) => id !== activeConversation.id)
+              : [...list, activeConversation.id];
+            saveNotificationSettings({
+              ...notificationSettings,
+              mutedConversations: newList,
+            });
+            message.success(isMuted ? "Notifications unmuted" : "Notifications muted");
           }
         }
       ];
@@ -1104,15 +1353,22 @@ export default function ChatPage() {
             }}
           >
             <h3 style={{ margin: 0, fontWeight: "bold" }}>Chat Rooms</h3>
-            <Button
-              type="primary"
-              shape="circle"
-              icon={<FiPlus />}
-              onClick={() => {
-                channelForm.setFieldsValue({ initialMembers: [currentUserId] });
-                setIsChannelModalVisible(true);
-              }}
-            />
+            <Space size={8}>
+              <Button
+                shape="circle"
+                icon={<FiSettings />}
+                onClick={() => setIsSettingsModalVisible(true)}
+              />
+              <Button
+                type="primary"
+                shape="circle"
+                icon={<FiPlus />}
+                onClick={() => {
+                  channelForm.setFieldsValue({ initialMembers: [currentUserId] });
+                  setIsChannelModalVisible(true);
+                }}
+              />
+            </Space>
           </div>
 
           <Input
@@ -2385,6 +2641,118 @@ export default function ChatPage() {
             style={{ width: "100%", borderRadius: "8px" }}
           />
         )}
+      </Modal>
+
+      {/* Notification Settings Modal */}
+      <Modal
+        title="Notification Settings"
+        open={isSettingsModalVisible}
+        onCancel={() => setIsSettingsModalVisible(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setIsSettingsModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "10px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "14px" }}>Mute All Notifications</div>
+              <div style={{ fontSize: "12px", color: "#8c8c8c" }}>Silence all sounds and alerts globally</div>
+            </div>
+            <Switch
+              checked={notificationSettings.mutedAll}
+              onChange={(checked) => saveNotificationSettings({ ...notificationSettings, mutedAll: checked })}
+            />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "14px" }}>Notification Sounds</div>
+              <div style={{ fontSize: "12px", color: "#8c8c8c" }}>Play a chime when new messages arrive</div>
+            </div>
+            <Switch
+              checked={notificationSettings.soundEnabled}
+              disabled={notificationSettings.mutedAll}
+              onChange={(checked) => saveNotificationSettings({ ...notificationSettings, soundEnabled: checked })}
+            />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "14px" }}>Desktop Notifications</div>
+              <div style={{ fontSize: "12px", color: "#8c8c8c" }}>Show browser popups for new messages</div>
+            </div>
+            <Switch
+              checked={notificationSettings.browserNotificationsEnabled}
+              disabled={notificationSettings.mutedAll}
+              onChange={(checked) => {
+                if (checked && typeof window !== "undefined" && "Notification" in window && Notification.permission !== "granted") {
+                  Notification.requestPermission().then((permission) => {
+                    saveNotificationSettings({
+                      ...notificationSettings,
+                      browserNotificationsEnabled: permission === "granted",
+                    });
+                    if (permission !== "granted") {
+                      message.warning("Notification permission denied by browser.");
+                    }
+                  });
+                } else {
+                  saveNotificationSettings({
+                    ...notificationSettings,
+                    browserNotificationsEnabled: checked,
+                  });
+                }
+              }}
+            />
+          </div>
+
+          <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: "16px" }}>
+            <h4 style={{ marginBottom: "12px", fontWeight: "600" }}>Muted Chats & Rooms</h4>
+            {notificationSettings.mutedConversations.length === 0 ? (
+              <span style={{ color: "#8c8c8c", fontSize: "13px" }}>No muted chats.</span>
+            ) : (
+              <List
+                size="small"
+                bordered
+                dataSource={notificationSettings.mutedConversations}
+                renderItem={(id) => {
+                  const isDm = id.includes("_");
+                  let name = "Unknown Chat";
+                  if (isDm) {
+                    const parts = id.split("_");
+                    const otherUserId = parts[0] === currentUserId ? parts[1] : parts[0];
+                    const userObj = users.find((u) => u.id === otherUserId);
+                    name = userObj ? userObj.name : "Direct Message";
+                  } else {
+                    const chan = channels.find((c) => c.id === id);
+                    name = chan ? `# ${chan.name}` : "Group Chat";
+                  }
+                  return (
+                    <List.Item
+                      actions={[
+                        <Button
+                          type="link"
+                          danger
+                          size="small"
+                          onClick={() => {
+                            const newList = notificationSettings.mutedConversations.filter(x => x !== id);
+                            saveNotificationSettings({ ...notificationSettings, mutedConversations: newList });
+                            message.success("Unmuted " + name);
+                          }}
+                        >
+                          Unmute
+                        </Button>
+                      ]}
+                    >
+                      <span style={{ fontSize: "13px" }}>{name}</span>
+                    </List.Item>
+                  );
+                }}
+              />
+            )}
+          </div>
+        </div>
       </Modal>
 
       {/* Channel Creation Modal */}
