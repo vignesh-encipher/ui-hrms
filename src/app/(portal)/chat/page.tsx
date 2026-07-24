@@ -1,10 +1,26 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { RootState, store } from "@/store";
 import API from "@/services/api";
 import { getStorage, setStorage } from "@/utils/storages";
+import { chatSocket } from "@/lib/chatSocket";
+import {
+  setUsers as setUsersAction,
+  setChannels as setChannelsAction,
+  setConversations as setConversationsAction,
+  setActiveConversation as setActiveConversationAction,
+  clearActiveConversation,
+  setTypingUsers as setTypingUsersAction,
+  setOnlineStatuses as setOnlineStatusesAction,
+  setNotificationSettings as setNotificationSettingsAction,
+} from "@/store/chatSlice";
+import { ChatUser, ChatChannel, MessageType } from "./types";
+import { formatBytes } from "./chatUtils";
+import MessageItem from "./MessageItem";
 import {
   Layout,
   Input,
@@ -62,99 +78,116 @@ import {
 } from "react-icons/fi";
 import { MdPushPin } from "react-icons/md";
 
-const { Sider, Content } = Layout;
+const { Sider } = Layout;
 const { Option } = Select;
 
 // Define interfaces
-interface ChatUser {
-  id: string;
-  employeeId: string;
-  name: string;
-  email: string;
-  photo?: string;
-  status: string; // online, offline, away, busy, dnd
-  departmentId?: string;
-  designationId?: string;
-  phone?: string;
-}
-
-interface ChatChannel {
-  id: string;
-  name: string;
-  description: string;
-  type: "PUBLIC" | "PRIVATE";
-  createdBy: string;
-  createdAt: string;
-  avatar?: string;
-  isMember: boolean;
-  memberCount: number;
-  unreadCount?: number;
-  lastMessage?: string;
-  lastMessageTime?: string;
-}
-
-interface Reaction {
-  userId: string;
-  emoji: string;
-}
-
-interface MessageType {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  message: string;
-  messageType: "TEXT" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT";
-  attachmentUrl?: string;
-  attachmentName?: string;
-  attachmentSize?: number;
-  replyTo?: string; // ID of message
-  edited: boolean;
-  deleted: boolean;
-  pinned: boolean;
-  reactions: Reaction[];
-  starredBy: string[];
-  readBy: string[];
-  deliveredTo: string[];
-  createdAt: string;
-}
-
 interface NotificationSettings {
   soundEnabled: boolean;
   browserNotificationsEnabled: boolean;
   mutedAll: boolean;
   mutedConversations: string[];
+  playSoundForActiveConversation: boolean;
 }
 
 export default function ChatPage() {
+  const dispatch = useDispatch();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     id: reduxUserId,
-    token,
     username: currentUserName,
   } = useSelector((state: RootState) => state.auth);
   const currentUserId =
     reduxUserId ||
     (typeof window !== "undefined" ? getStorage("userId") : null);
 
+  // Global chat state (shared app-wide, owned by the global socket/provider)
+  const {
+    users,
+    channels,
+    conversations,
+    activeConversation,
+    typingUsers,
+    onlineStatuses,
+    notificationSettings,
+  } = useSelector((state: RootState) => state.chat) as {
+    users: ChatUser[];
+    channels: ChatChannel[];
+    conversations: any[];
+    activeConversation: {
+      id: string;
+      type: "dm" | "channel";
+      name: string;
+      avatar?: string;
+      status?: string;
+    } | null;
+    typingUsers: { [convId: string]: string[] };
+    onlineStatuses: { [userId: string]: string };
+    notificationSettings: NotificationSettings;
+  };
+
+  // useState-shaped wrappers over the global slice so the rest of this file
+  // (written against local setState calls) doesn't need to change call sites.
+  const setUsers = (value: ChatUser[] | ((prev: ChatUser[]) => ChatUser[])) => {
+    const next = typeof value === "function" ? (value as any)(store.getState().chat.users) : value;
+    dispatch(setUsersAction(next));
+  };
+  const setChannels = (value: ChatChannel[] | ((prev: ChatChannel[]) => ChatChannel[])) => {
+    const next = typeof value === "function" ? (value as any)(store.getState().chat.channels) : value;
+    dispatch(setChannelsAction(next));
+  };
+  const setConversations = (value: any[] | ((prev: any[]) => any[])) => {
+    const next = typeof value === "function" ? (value as any)(store.getState().chat.conversations) : value;
+    dispatch(setConversationsAction(next));
+  };
+  const setActiveConversation = (
+    value:
+      | { id: string; type: "dm" | "channel"; name: string; avatar?: string; status?: string }
+      | null
+      | ((prev: typeof activeConversation) => typeof activeConversation)
+  ) => {
+    const prev = store.getState().chat.activeConversation;
+    const next = typeof value === "function" ? (value as any)(prev) : value;
+    if (next === null) dispatch(clearActiveConversation());
+    else dispatch(setActiveConversationAction(next));
+  };
+  const setTypingUsers = (
+    value:
+      | { [convId: string]: string[] }
+      | ((prev: { [convId: string]: string[] }) => { [convId: string]: string[] })
+  ) => {
+    const next = typeof value === "function" ? (value as any)(store.getState().chat.typingUsers) : value;
+    dispatch(setTypingUsersAction(next));
+  };
+  const setOnlineStatuses = (
+    value:
+      | { [userId: string]: string }
+      | ((prev: { [userId: string]: string }) => { [userId: string]: string })
+  ) => {
+    const next = typeof value === "function" ? (value as any)(store.getState().chat.onlineStatuses) : value;
+    dispatch(setOnlineStatusesAction(next));
+  };
+  const saveNotificationSettings = (settings: NotificationSettings) => {
+    dispatch(setNotificationSettingsAction(settings));
+    if (currentUserId) {
+      setStorage(`chat_settings_${currentUserId}`, JSON.stringify(settings));
+    }
+  };
+
   // States
-  const [users, setUsers] = useState<ChatUser[]>([]);
-  const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [activeTab, setActiveTab] = useState<string>("all"); // all, direct, channels, starred, archived
-  const [activeConversation, setActiveConversation] = useState<{
-    id: string;
-    type: "dm" | "channel";
-    name: string;
-    avatar?: string;
-    status?: string;
-  } | null>(null);
 
   const [messages, setMessages] = useState<MessageType[]>([]);
+  const [oldestCursor, setOldestCursor] = useState<string | null>(null);
+  const [hasMoreOlder, setHasMoreOlder] = useState<boolean>(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState<boolean>(false);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [messageSearchQuery, setMessageSearchQuery] = useState<string>("");
   const [isSearchingInChat, setIsSearchingInChat] = useState<boolean>(false);
   const [inputText, setInputText] = useState<string>("");
-  const [reconnectKey, setReconnectKey] = useState<number>(0);
 
-  const [conversations, setConversations] = useState<any[]>([]);
   const [isNewChatModalVisible, setIsNewChatModalVisible] = useState<boolean>(false);
   const [newChatSearch, setNewChatSearch] = useState<string>("");
 
@@ -172,14 +205,6 @@ export default function ChatPage() {
   const [sharedAttachments, setSharedAttachments] = useState<MessageType[]>([]);
   const [channelMembers, setChannelMembers] = useState<any[]>([]);
   const [membersToAdd, setMembersToAdd] = useState<string[]>([]);
-
-  // Typing & Receipts states
-  const [typingUsers, setTypingUsers] = useState<{
-    [convId: string]: string[];
-  }>({});
-  const [onlineStatuses, setOnlineStatuses] = useState<{
-    [userId: string]: string;
-  }>({});
 
   // Message modifications
   const [replyingTo, setReplyingTo] = useState<MessageType | null>(null);
@@ -201,264 +226,40 @@ export default function ChatPage() {
   // Image zoom modal
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // WebSocket Ref
-  const wsRef = useRef<WebSocket | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  // Notification settings
-  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-    soundEnabled: true,
-    browserNotificationsEnabled: false,
-    mutedAll: false,
-    mutedConversations: [],
-  });
+  // Notification settings: sourced from global state (loaded/persisted by GlobalChatProvider on login)
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState<boolean>(false);
-  const lastPlayTimeRef = useRef<number>(0);
-  const audioCtxRef = useRef<AudioContext | null>(null);
 
-  const initAudioContext = () => {
-    if (typeof window === "undefined") return null;
-    if (!audioCtxRef.current) {
-      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtxClass) {
-        audioCtxRef.current = new AudioCtxClass();
-      }
-    }
-    return audioCtxRef.current;
-  };
+  // Virtualized message list plumbing
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const isPrependingRef = useRef(false);
+  const anchorMessageIdRef = useRef<string | null>(null);
+  const hasScrolledInitiallyRef = useRef(false);
+  const prevMessageCountRef = useRef(0);
 
-  // Load settings when currentUserId changes
-  useEffect(() => {
-    if (!currentUserId) return;
-    const stored = getStorage(`chat_settings_${currentUserId}`);
-    if (stored) {
-      try {
-        setNotificationSettings(JSON.parse(stored));
-      } catch (e) {}
-    }
-  }, [currentUserId]);
-
-  const saveNotificationSettings = (settings: NotificationSettings) => {
-    setNotificationSettings(settings);
-    if (currentUserId) {
-      setStorage(`chat_settings_${currentUserId}`, JSON.stringify(settings));
-    }
-  };
-
-  // Request browser notification permission
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      if (Notification.permission === "default") {
-        Notification.requestPermission().then((permission) => {
-          if (permission === "granted") {
-            saveNotificationSettings({
-              ...notificationSettings,
-              browserNotificationsEnabled: true,
-            });
-          }
-        });
-      } else if (Notification.permission === "granted") {
-        setNotificationSettings((prev) => {
-          const updated = { ...prev, browserNotificationsEnabled: true };
-          if (currentUserId) {
-            setStorage(`chat_settings_${currentUserId}`, JSON.stringify(updated));
-          }
-          return updated;
-        });
-      }
-    }
-  }, [currentUserId]);
-
-  // Unlock Audio Context on first user interaction
-  useEffect(() => {
-    const resumeAudio = () => {
-      const audioCtx = initAudioContext();
-      if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume();
-      }
-    };
-    window.addEventListener("click", resumeAudio);
-    window.addEventListener("keydown", resumeAudio);
-    return () => {
-      window.removeEventListener("click", resumeAudio);
-      window.removeEventListener("keydown", resumeAudio);
-    };
-  }, []);
-
-  const playNotificationSound = () => {
-    try {
-      const audio = new Audio("/fahhhhh.mp3");
-      audio.volume = 0.4;
-      audio.play().catch((err) => {
-        console.warn("Failed to play notification audio file", err);
-      });
-    } catch (err) {
-      console.error("Audio playback error", err);
-    }
-  };
-
-  const playNotificationSoundThrottled = () => {
-    const now = Date.now();
-    if (now - lastPlayTimeRef.current > 1000) {
-      lastPlayTimeRef.current = now;
-      playNotificationSound();
-    }
-  };
-
-  const showBrowserNotification = (senderName: string, messageText: string, conversationId: string) => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted" || !notificationSettingsRef.current.browserNotificationsEnabled) return;
-
-    const isDm = conversationId.includes("_");
-    let title = senderName;
-    let body = messageText;
-
-    if (isDm) {
-      title = senderName;
-      body = messageText;
-    } else {
-      const channel = channelsRef.current.find((c) => c.id === conversationId);
-      title = channel ? `# ${channel.name}` : "Group Chat";
-      body = `${senderName}: ${messageText}`;
-    }
-
-    const notification = new Notification(title, {
-      body: body,
-      icon: "/logo.png",
-    });
-
-    notification.onclick = () => {
-      window.focus();
-      if (isDm) {
-        const parts = conversationId.split("_");
-        const targetId = parts[0] === currentUserId ? parts[1] : parts[0];
-        const target = usersRef.current.find((u) => u.id === targetId);
-        if (target) {
-          setActiveConversation({
-            id: conversationId,
-            type: "dm",
-            name: target.name,
-            avatar: target.photo,
-            status: target.status,
-          });
-        }
-      } else {
-        const channel = channelsRef.current.find((c) => c.id === conversationId);
-        if (channel) {
-          setActiveConversation({
-            id: channel.id,
-            type: "channel",
-            name: channel.name,
-            avatar: channel.avatar,
-          });
-        }
-      }
-      notification.close();
-    };
-  };
-
-  const activeConversationRef = useRef(activeConversation);
-  const usersRef = useRef(users);
-  const channelsRef = useRef(channels);
-  const conversationsRef = useRef(conversations);
-  const notificationSettingsRef = useRef(notificationSettings);
-
-  useEffect(() => {
-    activeConversationRef.current = activeConversation;
-  }, [activeConversation]);
-
-  useEffect(() => {
-    usersRef.current = users;
-  }, [users]);
-
-  useEffect(() => {
-    channelsRef.current = channels;
-  }, [channels]);
-
-  useEffect(() => {
-    conversationsRef.current = conversations;
-  }, [conversations]);
-
-  useEffect(() => {
-    notificationSettingsRef.current = notificationSettings;
-  }, [notificationSettings]);
-
-  // Load baseline data
+  // Load baseline data (also loaded globally on login; this covers manual refresh / direct navigation)
   useEffect(() => {
     fetchUsers();
     fetchConversations();
     fetchChannels();
   }, []);
 
-  // Set up WebSocket connection
+  // Reset the "have we done the initial scroll yet" bookkeeping whenever the open
+  // conversation changes, so each conversation gets its own unread-anchor/bottom-scroll.
   useEffect(() => {
-    if (!token) return;
+    hasScrolledInitiallyRef.current = false;
+    prevMessageCountRef.current = 0;
+  }, [activeConversation?.id]);
 
-    const apiBaseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "https://be-hrms-x40s.onrender.com";
-    const wsHost = apiBaseUrl.replace(/^http/, "ws");
-    const wsUrl = `${wsHost}/ws-chat?token=${token}`;
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        handleWebSocketEvent(payload);
-      } catch (err) {
-        console.error("Failed to parse WebSocket event", err);
-      }
-    };
-
-    ws.onclose = () => {
-      if (wsRef.current !== ws) {
-        return;
-      }
-      console.log("WebSocket disconnected, reconnecting in 5s...");
-      setTimeout(() => {
-        if (token) setReconnectKey((prev) => prev + 1);
-      }, 5000);
-    };
-
-    return () => {
-      if (wsRef.current === ws) {
-        wsRef.current = null;
-      }
-      ws.close();
-    };
-  }, [token, reconnectKey]);
-
-  // Handle auto scroll
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typingUsers]);
-
-  // Load messages when conversation changes
+  // Load messages when conversation changes. The unread boundary/firstUnreadMessageId
+  // returned by fetchMessages reflects the read cursor as of the GET - only mark the
+  // conversation read *after* that response lands, otherwise a fast-resolving read POST
+  // could advance the cursor before we compute where the unread divider goes.
   useEffect(() => {
     if (!activeConversation) return;
-    fetchMessages(activeConversation.id);
+    fetchMessages(activeConversation.id).then(() => {
+      API.post(`/chat/conversations/${activeConversation.id}/read`).catch(() => {});
+    });
     fetchSharedAttachments(activeConversation.id);
-
-    API.post(`/chat/conversations/${activeConversation.id}/read`).catch(() => {});
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.conversationId === activeConversation.id
-          ? { ...c, unreadCount: 0 }
-          : c
-      )
-    );
-    setChannels((prev) =>
-      prev.map((c) =>
-        c.id === activeConversation.id
-          ? { ...c, unreadCount: 0 }
-          : c
-      )
-    );
 
     // Clear typing indicators for this channel
     setTypingUsers((prev) => {
@@ -519,19 +320,40 @@ export default function ChatPage() {
 
   const fetchMessages = async (convId: string) => {
     try {
-      const res = await API.get(`/chat/messages/${convId}`, {
-        params: { page: 0, size: 100 },
-      });
-      setMessages(res.data.content.reverse());
-
-      if (res.data.content.length > 0) {
-        const lastMsg = res.data.content[0];
-        if (lastMsg.senderId !== currentUserId) {
-          sendReadReceipt(lastMsg.id, convId);
-        }
-      }
+      const res = await API.get(`/chat/messages/${convId}`);
+      const { messages: msgs, oldestCursor: cursor, hasMoreOlder: more, firstUnreadMessageId: firstUnread } = res.data;
+      setMessages(msgs || []);
+      setOldestCursor(cursor);
+      setHasMoreOlder(!!more);
+      setFirstUnreadMessageId(firstUnread || null);
     } catch (err) {
       message.error("Failed to load message history");
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeConversation || isLoadingOlder || !hasMoreOlder || !oldestCursor) return;
+    setIsLoadingOlder(true);
+    anchorMessageIdRef.current = messages[0]?.id || null;
+    try {
+      const res = await API.get(`/chat/messages/${activeConversation.id}`, {
+        params: { before: oldestCursor },
+      });
+      const { messages: older, oldestCursor: newCursor, hasMoreOlder: more } = res.data;
+      if (older && older.length > 0) {
+        isPrependingRef.current = true;
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const deduped = older.filter((m: MessageType) => !existingIds.has(m.id));
+          return [...deduped, ...prev];
+        });
+      }
+      setOldestCursor(newCursor);
+      setHasMoreOlder(!!more);
+    } catch (err) {
+      message.error("Failed to load older messages");
+    } finally {
+      setIsLoadingOlder(false);
     }
   };
 
@@ -544,134 +366,27 @@ export default function ChatPage() {
     }
   };
 
-  const handleWebSocketEvent = (event: any) => {
-    const { type } = event;
-
-    switch (type) {
-      case "CHAT_MESSAGE":
-        const newMsg: MessageType = event.message;
-        const isMsgFromOther = newMsg.senderId !== currentUserId;
-        const isOpen = activeConversationRef.current && newMsg.conversationId === activeConversationRef.current.id;
-
-        if (isMsgFromOther) {
-          const currentSettings = notificationSettingsRef.current;
-          const isMuted = currentSettings.mutedAll || currentSettings.mutedConversations.includes(newMsg.conversationId);
-          if (!isMuted) {
-            if (currentSettings.soundEnabled) {
-              playNotificationSoundThrottled();
-            }
-            if (!isOpen) {
-              const senderObj = usersRef.current.find((u) => u.id === newMsg.senderId);
-              const senderName = senderObj ? senderObj.name : "Unknown Colleague";
-              showBrowserNotification(senderName, newMsg.message, newMsg.conversationId);
-            }
-          }
-        }
-
-        if (isOpen) {
+  // Global unread counts, presence, typing, and channel-list refresh are handled
+  // by chatSocket.ts / the chat Redux slice regardless of whether this page is
+  // mounted. Here we only patch the locally-loaded message list for the
+  // conversation that's currently open.
+  useEffect(() => {
+    const unsubscribe = chatSocket.subscribe((event: any) => {
+      if (!activeConversation) return;
+      switch (event.type) {
+        case "CHAT_MESSAGE": {
+          const newMsg: MessageType = event.message;
+          if (newMsg.conversationId !== activeConversation.id) return;
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
-          if (isMsgFromOther) {
-            API.post(`/chat/conversations/${newMsg.conversationId}/read`).catch(() => {});
-          }
-        } else {
-          const isDm = newMsg.conversationId.includes("_");
-          if (isDm) {
-            setConversations((prev) => {
-              const exists = prev.some((c) => c.conversationId === newMsg.conversationId);
-              if (exists) {
-                return prev.map((c) => {
-                  if (c.conversationId === newMsg.conversationId) {
-                    return {
-                      ...c,
-                      lastMessage: newMsg.message,
-                      lastMessageTime: newMsg.createdAt,
-                      unreadCount: c.unreadCount + 1,
-                    };
-                  }
-                  return c;
-                });
-              } else {
-                fetchConversations();
-                return prev;
-              }
-            });
-          } else {
-            setChannels((prev) => {
-              const exists = prev.some((c) => c.id === newMsg.conversationId);
-              if (exists) {
-                const updated = prev.map((c) => {
-                  if (c.id === newMsg.conversationId) {
-                    return {
-                      ...c,
-                      lastMessage: newMsg.message,
-                      lastMessageTime: newMsg.createdAt,
-                      unreadCount: (c.unreadCount || 0) + 1,
-                    };
-                  }
-                  return c;
-                });
-                return updated.sort((c1, c2) => {
-                  const t1 = c1.lastMessageTime ? new Date(c1.lastMessageTime).getTime() : 0;
-                  const t2 = c2.lastMessageTime ? new Date(c2.lastMessageTime).getTime() : 0;
-                  return t2 - t1;
-                });
-              } else {
-                fetchChannels();
-                return prev;
-              }
-            });
-          }
+          break;
         }
-        break;
 
-      case "TYPING":
-        const { conversationId, senderId, isTyping } = event;
-        const sender = usersRef.current.find((u) => u.id === senderId);
-        if (!sender) return;
-
-        setTypingUsers((prev) => {
-          const list = prev[conversationId] || [];
-          if (isTyping) {
-            if (!list.includes(sender.name)) {
-              return { ...prev, [conversationId]: [...list, sender.name] };
-            }
-          } else {
-            return {
-              ...prev,
-              [conversationId]: list.filter((n) => n !== sender.name),
-            };
-          }
-          return prev;
-        });
-        break;
-
-      case "PRESENCE":
-        const { userId, status } = event;
-        setOnlineStatuses((prev) => ({ ...prev, [userId]: status }));
-        break;
-
-      case "CONVERSATION_READ":
-        const { conversationId: readConvId, readerId } = event;
-        if (readerId === currentUserId) {
-          setConversations((prev) =>
-            prev.map((c) =>
-              c.conversationId === readConvId
-                ? { ...c, unreadCount: 0 }
-                : c
-            )
-          );
-          setChannels((prev) =>
-            prev.map((c) =>
-              c.id === readConvId
-                ? { ...c, unreadCount: 0 }
-                : c
-            )
-          );
-        }
-        if (activeConversationRef.current && activeConversationRef.current.id === readConvId) {
+        case "CONVERSATION_READ": {
+          const { conversationId: readConvId, readerId } = event;
+          if (readConvId !== activeConversation.id) return;
           setMessages((prev) =>
             prev.map((m) => {
               if (m.senderId !== readerId && (!m.readBy || !m.readBy.includes(readerId))) {
@@ -680,83 +395,71 @@ export default function ChatPage() {
               return m;
             })
           );
+          break;
         }
-        break;
 
-      case "CHANNEL_CREATED":
-        fetchChannels();
-        break;
-
-      case "READ_RECEIPT":
-        const { messageId } = event;
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id === messageId || m.createdAt <= event.timestamp) {
-              if (!m.readBy.includes(event.readerId)) {
-                return { ...m, readBy: [...m.readBy, event.readerId] };
-              }
-            }
-            return m;
-          }),
-        );
-        break;
-
-      case "MESSAGE_EDITED":
-        const editedMsg: MessageType = event.message;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === editedMsg.id ? editedMsg : m)),
-        );
-        break;
-
-      case "MESSAGE_DELETED":
-        const { messageId: delId } = event;
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === delId
-              ? {
-                  ...m,
-                  deleted: true,
-                  message: "This message was deleted",
-                  attachmentUrl: undefined,
+        case "READ_RECEIPT": {
+          const { messageId } = event;
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id === messageId || m.createdAt <= event.timestamp) {
+                if (!m.readBy.includes(event.readerId)) {
+                  return { ...m, readBy: [...m.readBy, event.readerId] };
                 }
-              : m,
-          ),
-        );
-        break;
-
-      case "MESSAGE_PINNED_TOGGLE":
-        const pinnedMsg: MessageType = event.message;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === pinnedMsg.id ? pinnedMsg : m)),
-        );
-        break;
-
-      case "MESSAGE_REACTION":
-        const reactedMsg: MessageType = event.message;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === reactedMsg.id ? reactedMsg : m)),
-        );
-        break;
-
-      case "CHANNEL_INVITATION":
-        fetchChannels();
-        break;
-
-      case "REMOVED_FROM_CHANNEL":
-        fetchChannels();
-        if (
-          activeConversationRef.current &&
-          activeConversationRef.current.id === event.channelId
-        ) {
-          setActiveConversation(null);
-          message.info("You have been removed from this channel");
+              }
+              return m;
+            }),
+          );
+          break;
         }
-        break;
 
-      default:
-        break;
-    }
-  };
+        case "MESSAGE_EDITED": {
+          const editedMsg: MessageType = event.message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === editedMsg.id ? editedMsg : m)),
+          );
+          break;
+        }
+
+        case "MESSAGE_DELETED": {
+          const { messageId: delId } = event;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === delId
+                ? {
+                    ...m,
+                    deleted: true,
+                    message: "This message was deleted",
+                    attachmentUrl: undefined,
+                  }
+                : m,
+            ),
+          );
+          break;
+        }
+
+        case "MESSAGE_PINNED_TOGGLE": {
+          const pinnedMsg: MessageType = event.message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === pinnedMsg.id ? pinnedMsg : m)),
+          );
+          break;
+        }
+
+        case "MESSAGE_REACTION": {
+          const reactedMsg: MessageType = event.message;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === reactedMsg.id ? reactedMsg : m)),
+          );
+          break;
+        }
+
+        default:
+          break;
+      }
+    });
+    return unsubscribe;
+  }, [activeConversation?.id]);
 
   // REST API Actions
   const handleSendMessage = async () => {
@@ -773,7 +476,7 @@ export default function ChatPage() {
     try {
       setInputText("");
       setReplyingTo(null);
-      const res = await API.post("/chat/messages", payload);
+      const res = await API.post("/chat/messages", payload, { skipSuccessNotification: true });
       const savedMsg = res.data;
       setMessages((prev) => {
         if (prev.some((m) => m.id === savedMsg.id)) return prev;
@@ -798,30 +501,13 @@ export default function ChatPage() {
     }
   };
 
-  const sendReadReceipt = (messageId: string, convId: string) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: "READ_RECEIPT",
-          conversationId: convId,
-          messageId: messageId,
-          readerId: currentUserId,
-        }),
-      );
-    }
-  };
-
   const sendTypingStatus = (isTyping: boolean) => {
     if (!activeConversation) return;
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: "TYPING",
-          conversationId: activeConversation.id,
-          isTyping: isTyping,
-        }),
-      );
-    }
+    chatSocket.send({
+      type: "TYPING",
+      conversationId: activeConversation.id,
+      isTyping: isTyping,
+    });
   };
 
   const typingTimeoutRef = useRef<any>(null);
@@ -835,17 +521,14 @@ export default function ChatPage() {
     }, 2000);
   };
 
-  const handleAddReaction = async (messageId: string, emoji: string) => {
+  const handleAddReaction = useCallback(async (messageId: string, emoji: string, alreadyReacted: boolean) => {
     try {
-      const msgObj = messages.find(m => m.id === messageId);
-      const existingReaction = msgObj?.reactions?.find(r => r.userId === currentUserId && r.emoji === emoji);
-      
-      const emojiToSend = existingReaction ? "" : emoji;
+      const emojiToSend = alreadyReacted ? "" : emoji;
       await API.post(`/chat/messages/${messageId}/react`, { emoji: emojiToSend });
     } catch (err) {
       message.error("Reaction failed");
     }
-  };
+  }, []);
 
   const handleToggleStar = async (messageId: string) => {
     try {
@@ -866,7 +549,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleDeleteMessage = async (
+  const handleDeleteMessage = useCallback(async (
     messageId: string,
     scope: "me" | "everyone",
   ) => {
@@ -881,7 +564,12 @@ export default function ChatPage() {
     } catch (err) {
       message.error("Delete failed");
     }
-  };
+  }, []);
+
+  const handleEditClick = useCallback((msg: MessageType) => {
+    setEditingMessage(msg);
+    setInputText(msg.message);
+  }, []);
 
   const handleCreateChannel = async (values: any) => {
     try {
@@ -1023,7 +711,7 @@ export default function ChatPage() {
         attachmentName: res.data.attachmentName,
         attachmentSize: res.data.attachmentSize,
       };
-      await API.post("/chat/messages", payload);
+      await API.post("/chat/messages", payload, { skipSuccessNotification: true });
       message.success(`${file.name} shared successfully`);
     } catch (err) {
       setUploadProgress(null);
@@ -1069,7 +757,7 @@ export default function ChatPage() {
             attachmentName: "Voice message.webm",
             attachmentSize: audioBlob.size,
           };
-          await API.post("/chat/messages", payload);
+          await API.post("/chat/messages", payload, { skipSuccessNotification: true });
         } catch (err) {
           message.error("Failed to upload voice message");
         }
@@ -1097,55 +785,48 @@ export default function ChatPage() {
     if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
   };
 
-  const renderMessageText = (text: string) => {
-    if (!text) return "";
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = text.split(urlRegex);
-    return parts.map((part, index) => {
-      if (part.match(urlRegex)) {
-        return (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: "#0958d9",
-              textDecoration: "underline",
-              wordBreak: "break-all",
-            }}
-          >
-            {part}
-          </a>
-        );
-      }
-      const boldRegex = /\*([^*]+)\*/g;
-      if (part.includes("*")) {
-        const subparts = part.split(boldRegex);
-        return subparts.map((sub, i) => {
-          if (i % 2 === 1) {
-            return <strong key={i}>{sub}</strong>;
-          }
-          return sub;
-        });
-      }
-      return part;
-    });
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const dm = 2;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-  };
-
   const getDMConversationId = (userId: string) => {
     const sorted = [currentUserId, userId].sort();
     return `${sorted[0]}_${sorted[1]}`;
   };
+
+  // Deep-link support: a notification/toast click navigates here as
+  // /chat?user=<id> or /chat?channel=<id>. Open the right conversation once
+  // users/channels have loaded, then clean up the URL. Guarded by a ref so it
+  // only fires once per distinct link (a later channels/users refetch won't
+  // re-open a conversation the person has since navigated away from).
+  const appliedDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const userParam = searchParams?.get("user") ?? null;
+    const channelParam = searchParams?.get("channel") ?? null;
+    const key = userParam ? `user:${userParam}` : channelParam ? `channel:${channelParam}` : null;
+    if (!key || appliedDeepLinkRef.current === key) return;
+
+    if (userParam) {
+      const target = users.find((u) => u.id === userParam);
+      if (!target) return; // retry once `users` finishes loading
+      appliedDeepLinkRef.current = key;
+      setActiveConversation({
+        id: getDMConversationId(userParam),
+        type: "dm",
+        name: target.name,
+        avatar: target.photo,
+        status: onlineStatuses[target.id] || target.status,
+      });
+      router.replace("/chat");
+    } else if (channelParam) {
+      const channel = channels.find((c) => c.id === channelParam);
+      if (!channel) return; // retry once `channels` finishes loading
+      appliedDeepLinkRef.current = key;
+      setActiveConversation({
+        id: channel.id,
+        type: "channel",
+        name: channel.name,
+        avatar: channel.avatar,
+      });
+      router.replace("/chat");
+    }
+  }, [searchParams, users, channels]);
 
   const getMoreOptionsItems = () => {
     if (!activeConversation) return [];
@@ -1278,16 +959,77 @@ export default function ChatPage() {
     );
   });
 
-  const filteredMessages = messages.filter((m) => {
-    if (!messageSearchQuery) return true;
-    return (
-      m.message.toLowerCase().includes(messageSearchQuery.toLowerCase()) ||
-      (m.attachmentName &&
-        m.attachmentName
-          .toLowerCase()
-          .includes(messageSearchQuery.toLowerCase()))
-    );
+  const filteredMessages = useMemo(() => {
+    if (!messageSearchQuery) return messages;
+    return messages.filter((m) => {
+      return (
+        m.message.toLowerCase().includes(messageSearchQuery.toLowerCase()) ||
+        (m.attachmentName &&
+          m.attachmentName
+            .toLowerCase()
+            .includes(messageSearchQuery.toLowerCase()))
+      );
+    });
+  }, [messages, messageSearchQuery]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: filteredMessages.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 90,
+    overscan: 8,
+    getItemKey: (index) => filteredMessages[index]?.id ?? index,
   });
+
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el || isLoadingOlder || !hasMoreOlder || !oldestCursor || !activeConversation) return;
+    if (el.scrollTop < 150) {
+      loadOlderMessages();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingOlder, hasMoreOlder, oldestCursor, activeConversation]);
+
+  // Single source of truth for scroll position: restores the anchor after prepending
+  // older messages, jumps to the first unread message (or the bottom, if none) on the
+  // initial load of a conversation, and follows new messages only while already near
+  // the bottom - never yanks the view while the user is reading history.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || filteredMessages.length === 0) return;
+
+    if (isPrependingRef.current) {
+      isPrependingRef.current = false;
+      const anchorId = anchorMessageIdRef.current;
+      const idx = anchorId ? filteredMessages.findIndex((m) => m.id === anchorId) : -1;
+      if (idx !== -1) rowVirtualizer.scrollToIndex(idx, { align: "start" });
+      prevMessageCountRef.current = filteredMessages.length;
+      return;
+    }
+
+    if (!hasScrolledInitiallyRef.current) {
+      hasScrolledInitiallyRef.current = true;
+      const unreadIdx = firstUnreadMessageId
+        ? filteredMessages.findIndex((m) => m.id === firstUnreadMessageId)
+        : -1;
+      if (unreadIdx !== -1) {
+        rowVirtualizer.scrollToIndex(unreadIdx, { align: "start" });
+      } else {
+        rowVirtualizer.scrollToIndex(filteredMessages.length - 1, { align: "end" });
+      }
+      prevMessageCountRef.current = filteredMessages.length;
+      return;
+    }
+
+    const prevCount = prevMessageCountRef.current;
+    prevMessageCountRef.current = filteredMessages.length;
+    if (filteredMessages.length > prevCount) {
+      const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (nearBottom) {
+        rowVirtualizer.scrollToIndex(filteredMessages.length - 1, { align: "end" });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredMessages, firstUnreadMessageId]);
 
   // Check if current user is admin of active channel
   const isCurrentChannelAdmin = channelMembers.some(
@@ -1750,407 +1492,97 @@ export default function ChatPage() {
             )}
 
             {/* Messages Area */}
-            <Content
+            <div
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
               style={{
                 flex: 1,
                 padding: "24px",
                 overflowY: "auto",
                 background: "#efeae2",
-                display: "flex",
-                flexDirection: "column",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                {filteredMessages.map((msg) => {
+              {isLoadingOlder && (
+                <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
+                  <Spin size="small" />
+                </div>
+              )}
+
+              <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const msg = filteredMessages[virtualRow.index];
+                  if (!msg) return null;
                   const isOwn = String(msg.senderId) === String(currentUserId);
-                  // console.log("ALIGNMENT CHECK:", {
-                  //   msgId: msg.id,
-                  //   msgSenderId: msg.senderId,
-                  //   currentUserId: currentUserId,
-                  //   isMatch: isOwn
-                  // });
                   const sender = users.find((u) => u.id === msg.senderId);
-                  const isRead = msg.readBy && msg.readBy.length > 0;
+                  const showUnreadDivider = msg.id === firstUnreadMessageId;
 
                   return (
                     <div
-                      key={msg.id}
+                      key={virtualRow.key}
+                      ref={rowVirtualizer.measureElement}
+                      data-index={virtualRow.index}
                       style={{
-                        display: "flex",
-                        justifyContent: isOwn ? "flex-end" : "flex-start",
-                        marginBottom: "8px",
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <div style={{ maxWidth: "70%" }}>
-                        {!isOwn && activeConversation.type === "channel" && (
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              color: "#8c8c8c",
-                              marginLeft: "8px",
-                              marginBottom: "2px",
-                              display: "block",
-                            }}
-                          >
-                            {sender ? sender.name : "Unknown colleague"}
-                          </span>
-                        )}
-
+                      {showUnreadDivider && (
                         <div
                           style={{
-                            background: isOwn ? "#d9fdd3" : "#ffffff",
-                            color: "#111b21",
-                            padding: "8px 12px",
-                            borderRadius: isOwn
-                              ? "12px 12px 2px 12px"
-                              : "12px 12px 12px 2px",
-                            boxShadow: "0 1px 0.5px rgba(0,0,0,0.12)",
-                            position: "relative",
-                            border: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            margin: "16px 0",
                           }}
                         >
-                          {msg.replyTo && (
-                            <div
-                              style={{
-                                background: "rgba(0,0,0,0.05)",
-                                borderLeft: "3px solid #6366f1",
-                                padding: "4px 8px",
-                                marginBottom: "6px",
-                                borderRadius: "4px",
-                                fontSize: "11px",
-                                opacity: 0.8,
-                              }}
-                            >
-                              Ref message
-                            </div>
-                          )}
-
-                          {msg.deleted ? (
-                            <span style={{ fontStyle: "italic", opacity: 0.6 }}>
-                              {msg.message}
-                            </span>
-                          ) : (
-                            <>
-                              {msg.messageType === "IMAGE" &&
-                                msg.attachmentUrl && (
-                                  <div
-                                    style={{
-                                      marginBottom: "6px",
-                                      cursor: "pointer",
-                                    }}
-                                    onClick={() =>
-                                      setPreviewImage(msg.attachmentUrl || null)
-                                    }
-                                  >
-                                    <img
-                                      src={msg.attachmentUrl}
-                                      alt="shared"
-                                      style={{
-                                        maxWidth: "100%",
-                                        borderRadius: "8px",
-                                        maxHeight: "200px",
-                                      }}
-                                    />
-                                  </div>
-                                )}
-
-                              {msg.messageType === "VIDEO" &&
-                                msg.attachmentUrl && (
-                                  <div style={{ marginBottom: "6px" }}>
-                                    <video
-                                      src={msg.attachmentUrl}
-                                      controls
-                                      style={{
-                                        maxWidth: "100%",
-                                        borderRadius: "8px",
-                                        maxHeight: "200px",
-                                      }}
-                                    />
-                                  </div>
-                                )}
-
-                              {msg.messageType === "AUDIO" &&
-                                msg.attachmentUrl && (
-                                  <div style={{ marginBottom: "6px" }}>
-                                    <audio
-                                      src={msg.attachmentUrl}
-                                      controls
-                                      style={{ maxWidth: "100%" }}
-                                    />
-                                  </div>
-                                )}
-
-                              {msg.messageType === "DOCUMENT" &&
-                                msg.attachmentUrl && (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                      background: "rgba(0,0,0,0.03)",
-                                      padding: "8px",
-                                      borderRadius: "6px",
-                                      marginBottom: "6px",
-                                    }}
-                                  >
-                                    <FiFile style={{ fontSize: "24px" }} />
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                      <div
-                                        style={{
-                                          textOverflow: "ellipsis",
-                                          overflow: "hidden",
-                                          whiteSpace: "nowrap",
-                                          fontSize: "12px",
-                                        }}
-                                      >
-                                        {msg.attachmentName}
-                                      </div>
-                                      <span
-                                        style={{
-                                          fontSize: "10px",
-                                          opacity: 0.6,
-                                        }}
-                                      >
-                                        {formatBytes(msg.attachmentSize || 0)}
-                                      </span>
-                                    </div>
-                                    <a
-                                      href={msg.attachmentUrl}
-                                      download={msg.attachmentName}
-                                    >
-                                      <Button
-                                        type="text"
-                                        shape="circle"
-                                        icon={<FiDownload />}
-                                      />
-                                    </a>
-                                  </div>
-                                )}
-
-                              <div style={{ wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
-                                {renderMessageText(msg.message)}
-                              </div>
-                            </>
-                          )}
-
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              alignItems: "center",
-                              gap: "4px",
-                              marginTop: "4px",
-                              fontSize: "10px",
-                              opacity: 0.6,
-                            }}
-                          >
-                            <span>
-                              {new Date(msg.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                            {isOwn &&
-                              !msg.deleted &&
-                              (isRead ? (
-                                <FiCheckCircle style={{ color: "#52c41a" }} />
-                              ) : (
-                                <FiCheck />
-                              ))}
-                          </div>
-
-                          {(() => {
-                            const reactionGroups = (msg.reactions || []).reduce((acc: { [emoji: string]: string[] }, r) => {
-                              if (!acc[r.emoji]) acc[r.emoji] = [];
-                              if (!acc[r.emoji].includes(r.userId)) {
-                                acc[r.emoji].push(r.userId);
-                              }
-                              return acc;
-                            }, {});
-
-                            return (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: "6px",
-                                  marginTop: "6px",
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                {Object.entries(reactionGroups).map(([emoji, userIds]) => {
-                                  const hasReacted = userIds.includes(currentUserId);
-                                  const userNames = userIds.map(uid => {
-                                    if (uid === currentUserId) return "You";
-                                    const u = users.find(user => user.id === uid);
-                                    return u ? u.name : "Unknown Colleague";
-                                  });
-                                  
-                                  const popoverContent = (
-                                    <div style={{ padding: "4px 8px" }}>
-                                      <div style={{ fontWeight: "bold", marginBottom: "4px", fontSize: "13px" }}>
-                                        {emoji} Reacted by:
-                                      </div>
-                                      <ul style={{ paddingLeft: "16px", margin: 0, fontSize: "12px", color: "#595959" }}>
-                                        {userNames.map((name, idx) => (
-                                          <li key={idx}>{name}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  );
-
-                                  return (
-                                    <Popover
-                                      key={emoji}
-                                      content={popoverContent}
-                                      trigger="hover"
-                                      placement="top"
-                                    >
-                                      <span
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleAddReaction(msg.id, emoji);
-                                        }}
-                                        style={{
-                                          background: hasReacted ? "#d9fdd3" : "rgba(0,0,0,0.05)",
-                                          border: hasReacted ? "1px solid #10b981" : "1px solid transparent",
-                                          padding: "2px 8px",
-                                          borderRadius: "12px",
-                                          fontSize: "11px",
-                                          cursor: "pointer",
-                                          display: "inline-flex",
-                                          alignItems: "center",
-                                          gap: "4px",
-                                          transition: "all 0.2s",
-                                        }}
-                                      >
-                                        <span>{emoji}</span>
-                                        <span style={{ fontWeight: "bold", opacity: 0.8 }}>{userIds.length}</span>
-                                      </span>
-                                    </Popover>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })()}
+                          <div style={{ flex: 1, height: 1, background: "#ff4d4f" }} />
+                          <span style={{ fontSize: "12px", color: "#ff4d4f", fontWeight: 600 }}>
+                            Unread messages
+                          </span>
+                          <div style={{ flex: 1, height: 1, background: "#ff4d4f" }} />
                         </div>
-
-                        {!msg.deleted && (
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: isOwn ? "flex-end" : "flex-start",
-                              marginTop: "2px",
-                            }}
-                          >
-                            <Space size={12}>
-                              <Popover
-                                trigger="click"
-                                content={
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      gap: "8px",
-                                      fontSize: "16px",
-                                    }}
-                                  >
-                                    {["👍", "❤️", "😂", "😮", "🎉"].map(
-                                      (emoji) => (
-                                        <span
-                                          key={emoji}
-                                          style={{ cursor: "pointer" }}
-                                          onClick={() =>
-                                            handleAddReaction(msg.id, emoji)
-                                          }
-                                        >
-                                          {emoji}
-                                        </span>
-                                      ),
-                                    )}
-                                  </div>
-                                }
-                              >
-                                <Button
-                                  type="link"
-                                  size="small"
-                                  style={{ padding: 0 }}
-                                >
-                                  React
-                                </Button>
-                              </Popover>
-
-                              <Button
-                                type="link"
-                                size="small"
-                                style={{ padding: 0 }}
-                                onClick={() => setReplyingTo(msg)}
-                              >
-                                Reply
-                              </Button>
-
-                              {isOwn && (
-                                <>
-                                  <Button
-                                    type="link"
-                                    size="small"
-                                    style={{ padding: 0 }}
-                                    onClick={() => {
-                                      setEditingMessage(msg);
-                                      setInputText(msg.message);
-                                    }}
-                                  >
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    type="link"
-                                    size="small"
-                                    danger
-                                    style={{ padding: 0 }}
-                                    onClick={() =>
-                                      handleDeleteMessage(msg.id, "everyone")
-                                    }
-                                  >
-                                    Delete
-                                  </Button>
-                                </>
-                              )}
-
-                            </Space>
-                          </div>
-                        )}
-                      </div>
+                      )}
+                      <MessageItem
+                        msg={msg}
+                        isOwn={isOwn}
+                        isChannelView={activeConversation.type === "channel"}
+                        senderName={sender?.name}
+                        currentUserId={currentUserId}
+                        users={users}
+                        onPreviewImage={setPreviewImage}
+                        onReact={handleAddReaction}
+                        onReply={setReplyingTo}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteMessage}
+                      />
                     </div>
                   );
                 })}
-
-                {typingUsers[activeConversation.id] &&
-                  typingUsers[activeConversation.id].length > 0 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "6px",
-                        alignItems: "center",
-                        opacity: 0.6,
-                        fontSize: "12px",
-                        margin: "8px 0",
-                      }}
-                    >
-                      <Spin size="small" />
-                      <span>
-                        {typingUsers[activeConversation.id].join(", ")}{" "}
-                        typing...
-                      </span>
-                    </div>
-                  )}
-
-                <div ref={messagesEndRef} />
               </div>
-            </Content>
+
+              {typingUsers[activeConversation.id] &&
+                typingUsers[activeConversation.id].length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "6px",
+                      alignItems: "center",
+                      opacity: 0.6,
+                      fontSize: "12px",
+                      margin: "8px 0",
+                    }}
+                  >
+                    <Spin size="small" />
+                    <span>
+                      {typingUsers[activeConversation.id].join(", ")}{" "}
+                      typing...
+                    </span>
+                  </div>
+                )}
+            </div>
 
             {/* Input Panel */}
             <div
@@ -2682,6 +2114,20 @@ export default function ChatPage() {
                   });
                 }
               }}
+            />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "14px" }}>Sound for Open Conversation</div>
+              <div style={{ fontSize: "12px", color: "#8c8c8c" }}>Play the chime even while you're viewing that chat</div>
+            </div>
+            <Switch
+              checked={notificationSettings.playSoundForActiveConversation}
+              disabled={notificationSettings.mutedAll || !notificationSettings.soundEnabled}
+              onChange={(checked) =>
+                saveNotificationSettings({ ...notificationSettings, playSoundForActiveConversation: checked })
+              }
             />
           </div>
 

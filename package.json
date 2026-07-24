@@ -13,6 +13,7 @@
     "@ant-design/nextjs-registry": "^1.0.0",
     "@hookform/resolvers": "^3.9.0",
     "@reduxjs/toolkit": "^2.2.3",
+    "@tanstack/react-virtual": "^3.14.8",
     "antd": "^5.18.0",
     "axios": "^1.6.8",
     "clsx": "^2.1.0",

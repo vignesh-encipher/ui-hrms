@@ -4,17 +4,20 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { toggleTheme } from '@/store/themeSlice';
+import { selectAggregateUnread } from '@/store/chatSlice';
 import { Layout, Button, Badge, Avatar, Space } from 'antd';
 import { SunOutlined, MoonOutlined, BellOutlined, UserOutlined } from '@ant-design/icons';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const { Header: AntdHeader } = Layout;
 
 export default function Header() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const pathname = usePathname() ?? "";
   const { username, roles } = useSelector((state: RootState) => state.auth);
   const themeMode = useSelector((state: RootState) => state.theme.mode);
+  const chatUnread = useSelector(selectAggregateUnread);
 
   const getPageTitle = () => {
     const parts = pathname.split('/').filter(Boolean);
@@ -56,11 +59,12 @@ export default function Header() {
           />
 
           {/* Notifications */}
-          <Badge dot>
+          <Badge count={chatUnread} size="small" overflowCount={99}>
             <Button
               type="text"
               shape="circle"
               icon={<BellOutlined />}
+              onClick={() => router.push('/chat')}
               style={{ fontSize: '16px' }}
             />
           </Badge>

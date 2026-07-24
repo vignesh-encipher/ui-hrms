@@ -6,6 +6,8 @@ import { store, RootState } from '@/store';
 import { ConfigProvider, App, theme as antdTheme } from 'antd';
 
 import { AntdStaticHelper } from '@/utils/antdStatic';
+import GlobalChatProvider from '@/providers/GlobalChatProvider';
+import ChatToastStack from '@/components/ChatToastStack';
 
 function AntdConfigWrapper({ children }: { children: React.ReactNode }) {
   const mode = useSelector((state: RootState) => state.theme.mode);
@@ -30,7 +32,8 @@ function AntdConfigWrapper({ children }: { children: React.ReactNode }) {
     >
       <App>
         <AntdStaticHelper />
-        {children}
+        <GlobalChatProvider>{children}</GlobalChatProvider>
+        <ChatToastStack />
       </App>
     </ConfigProvider>
   );

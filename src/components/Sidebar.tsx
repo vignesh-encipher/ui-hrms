@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/store';
 import { logout } from '@/store/authSlice';
-import { Layout, Menu, Button } from 'antd';
+import { selectAggregateUnread } from '@/store/chatSlice';
+import { Layout, Menu, Button, Badge } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -26,6 +27,7 @@ export default function Sidebar() {
   const router = useRouter();
   const dispatch = useDispatch();
   const { roles } = useSelector((state: RootState) => state.auth);
+  const chatUnread = useSelector(selectAggregateUnread);
 
   const hasRole = (allowed: string[]) => {
     return roles.some((r) => allowed.includes(r));
@@ -45,7 +47,17 @@ export default function Sidebar() {
     { key: '/attendance', label: 'Attendance', icon: <CalendarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/leaves', label: 'Leaves', icon: <CarryOutOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/payroll', label: 'Payroll', icon: <DollarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
-    { key: '/chat', label: 'Chat & Comm', icon: <MessageOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
+    {
+      key: '/chat',
+      label: (
+        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          Chat & Comm
+          {chatUnread > 0 && <Badge count={chatUnread} size="small" overflowCount={99} />}
+        </span>
+      ),
+      icon: <MessageOutlined />,
+      roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'],
+    },
     { key: '/profile', label: 'My Profile', icon: <UserOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
   ];
 

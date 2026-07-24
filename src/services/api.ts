@@ -3,6 +3,13 @@ import { store } from '@/store';
 import { logout, updateToken } from '@/store/authSlice';
 import { notification } from '@/utils/antdStatic';
 
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    /** Suppress the global "Success" toast for this request only; failures still surface. */
+    skipSuccessNotification?: boolean;
+  }
+}
+
 const API = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "https://be-hrms-x40s.onrender.com",
   headers: {
@@ -43,8 +50,9 @@ API.interceptors.response.use(
   (response) => {
     if (response.data && typeof response.data === 'object' && 'status' in response.data && 'response' in response.data) {
       const method = response.config?.method?.toLowerCase();
+      const skipSuccess = response.config?.skipSuccessNotification && response.data.status === 'SUCCESS';
       // Show success notification for non-GET methods, or if status is not SUCCESS (e.g. USER_DEFINED_ERROR etc.)
-      if (method !== 'get' || response.data.status !== 'SUCCESS') {
+      if (!skipSuccess && (method !== 'get' || response.data.status !== 'SUCCESS')) {
         getResponePopup(response);
       }
       return {
