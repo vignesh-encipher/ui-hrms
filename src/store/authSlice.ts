@@ -10,6 +10,7 @@ interface AuthState {
   employeeId: string | null;
   id: string | null;
   isAuthenticated: boolean;
+  isFirstLogin: boolean;
 }
 
 const getInitialState = (): AuthState => {
@@ -23,6 +24,7 @@ const getInitialState = (): AuthState => {
       employeeId: null,
       id: null,
       isAuthenticated: false,
+      isFirstLogin: false,
     };
   }
   const token = getStorage('token');
@@ -33,6 +35,8 @@ const getInitialState = (): AuthState => {
   const roles = rolesRaw ? JSON.parse(rolesRaw) : [];
   const employeeId = getStorage('employeeId');
   const id = getStorage('userId');
+  const isFirstLoginRaw = getStorage('isFirstLogin');
+  const isFirstLogin = isFirstLoginRaw === 'true';
 
   return {
     token,
@@ -43,6 +47,7 @@ const getInitialState = (): AuthState => {
     employeeId,
     id,
     isAuthenticated: !!token,
+    isFirstLogin,
   };
 };
 
@@ -60,9 +65,10 @@ const authSlice = createSlice({
         roles: string[];
         employeeId: string | null;
         id: string;
+        isFirstLogin: boolean;
       }>
     ) => {
-      const { token, refreshToken, username, email, roles, employeeId, id } = action.payload;
+      const { token, refreshToken, username, email, roles, employeeId, id, isFirstLogin } = action.payload;
       state.token = token;
       state.refreshToken = refreshToken;
       state.username = username;
@@ -71,6 +77,7 @@ const authSlice = createSlice({
       state.employeeId = employeeId;
       state.id = id;
       state.isAuthenticated = true;
+      state.isFirstLogin = isFirstLogin;
 
       setStorage('token', token);
       setStorage('refreshToken', refreshToken);
@@ -79,6 +86,7 @@ const authSlice = createSlice({
       setStorage('roles', JSON.stringify(roles));
       if (employeeId) setStorage('employeeId', employeeId);
       setStorage('userId', id);
+      setStorage('isFirstLogin', isFirstLogin ? 'true' : 'false');
     },
     updateToken: (state, action: PayloadAction<{ token: string; refreshToken: string }>) => {
       state.token = action.payload.token;
@@ -95,6 +103,7 @@ const authSlice = createSlice({
       state.employeeId = null;
       state.id = null;
       state.isAuthenticated = false;
+      state.isFirstLogin = false;
 
       removeStorage('token');
       removeStorage('refreshToken');
@@ -103,6 +112,7 @@ const authSlice = createSlice({
       removeStorage('roles');
       removeStorage('employeeId');
       removeStorage('userId');
+      removeStorage('isFirstLogin');
     },
   },
 });

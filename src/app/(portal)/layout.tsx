@@ -12,25 +12,25 @@ const { Content } = Layout;
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, isFirstLogin } = useSelector((state: RootState) => state.auth);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (!isAuthenticated) {
       router.push('/login');
+    } else if (isFirstLogin) {
+      router.push('/change-password');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isFirstLogin, router]);
 
-  if (!mounted || !isAuthenticated) {
+  if (!mounted || !isAuthenticated || isFirstLogin) {
     return (
       <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
         <Spin size="large" />
       </div>
     );
   }
-
-  
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

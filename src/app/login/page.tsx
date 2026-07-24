@@ -12,14 +12,18 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 export default function LoginPage() {
   const dispatch = useDispatch();
   const router = useRouter();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, isFirstLogin } = useSelector((state: RootState) => state.auth);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard');
+      if (isFirstLogin) {
+        router.push('/change-password');
+      } else {
+        router.push('/dashboard');
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isFirstLogin, router]);
 
   const onFinish = async (values: any) => {
     setLoading(true);
@@ -37,9 +41,14 @@ export default function LoginPage() {
         roles: payload.roles,
         employeeId: payload.employeeId,
         id: payload.id,
+        isFirstLogin: !!payload.isFirstLogin,
       }));
       message.success('Login successful! Redirecting...');
-      router.push('/dashboard');
+      if (payload.isFirstLogin) {
+        router.push('/change-password');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       const msg = error.response?.data?.message || error.response?.data || 'Invalid username or password';
       message.error(typeof msg === 'string' ? msg : 'Invalid username or password');
