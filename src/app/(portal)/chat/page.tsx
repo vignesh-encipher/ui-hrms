@@ -182,6 +182,7 @@ export default function ChatPage() {
   const [oldestCursor, setOldestCursor] = useState<string | null>(null);
   const [hasMoreOlder, setHasMoreOlder] = useState<boolean>(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState<boolean>(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [messageSearchQuery, setMessageSearchQuery] = useState<string>("");
@@ -256,9 +257,15 @@ export default function ChatPage() {
   // could advance the cursor before we compute where the unread divider goes.
   useEffect(() => {
     if (!activeConversation) return;
-    fetchMessages(activeConversation.id).then(() => {
-      API.post(`/chat/conversations/${activeConversation.id}/read`).catch(() => {});
-    });
+    setIsLoadingMessages(true);
+    setMessages([]);
+    fetchMessages(activeConversation.id)
+      .then(() => {
+        API.post(`/chat/conversations/${activeConversation.id}/read`).catch(() => {});
+      })
+      .finally(() => {
+        setIsLoadingMessages(false);
+      });
     fetchSharedAttachments(activeConversation.id);
 
     // Clear typing indicators for this channel
@@ -1416,8 +1423,12 @@ export default function ChatPage() {
                     }}
                   >
                     {activeConversation.type === "channel"
-                      ? `${channelMembers.length} members`
-                      : activeConversation.status || "offline"}
+                      ? `${channels.find((c) => c.id === activeConversation.id)?.memberCount || 0} members`
+                      : (() => {
+                          const parts = activeConversation.id.split("_");
+                          const targetId = parts[0] === currentUserId ? parts[1] : parts[0];
+                          return onlineStatuses[targetId] || activeConversation.status || "offline";
+                        })()}
                   </span>
                 </div>
               </div>
@@ -1492,97 +1503,101 @@ export default function ChatPage() {
             )}
 
             {/* Messages Area */}
-            <div
-              ref={scrollContainerRef}
-              onScroll={handleScroll}
-              style={{
-                flex: 1,
-                padding: "24px",
-                overflowY: "auto",
-                background: "#efeae2",
-              }}
-            >
-              {isLoadingOlder && (
-                <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
-                  <Spin size="small" />
-                </div>
-              )}
-
-              <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
-                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const msg = filteredMessages[virtualRow.index];
-                  if (!msg) return null;
-                  const isOwn = String(msg.senderId) === String(currentUserId);
-                  const sender = users.find((u) => u.id === msg.senderId);
-                  const showUnreadDivider = msg.id === firstUnreadMessageId;
-
-                  return (
-                    <div
-                      key={virtualRow.key}
-                      ref={rowVirtualizer.measureElement}
-                      data-index={virtualRow.index}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        transform: `translateY(${virtualRow.start}px)`,
-                      }}
-                    >
-                      {showUnreadDivider && (
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            margin: "16px 0",
-                          }}
-                        >
-                          <div style={{ flex: 1, height: 1, background: "#ff4d4f" }} />
-                          <span style={{ fontSize: "12px", color: "#ff4d4f", fontWeight: 600 }}>
-                            Unread messages
-                          </span>
-                          <div style={{ flex: 1, height: 1, background: "#ff4d4f" }} />
-                        </div>
-                      )}
-                      <MessageItem
-                        msg={msg}
-                        isOwn={isOwn}
-                        isChannelView={activeConversation.type === "channel"}
-                        senderName={sender?.name}
-                        currentUserId={currentUserId}
-                        users={users}
-                        onPreviewImage={setPreviewImage}
-                        onReact={handleAddReaction}
-                        onReply={setReplyingTo}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteMessage}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {typingUsers[activeConversation.id] &&
-                typingUsers[activeConversation.id].length > 0 && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "6px",
-                      alignItems: "center",
-                      opacity: 0.6,
-                      fontSize: "12px",
-                      margin: "8px 0",
-                    }}
-                  >
+            {isLoadingMessages ? (
+              <ChatSkeleton />
+            ) : (
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                style={{
+                  flex: 1,
+                  padding: "24px",
+                  overflowY: "auto",
+                  background: "#efeae2",
+                }}
+              >
+                {isLoadingOlder && (
+                  <div style={{ display: "flex", justifyContent: "center", padding: "8px 0 16px" }}>
                     <Spin size="small" />
-                    <span>
-                      {typingUsers[activeConversation.id].join(", ")}{" "}
-                      typing...
-                    </span>
                   </div>
                 )}
-            </div>
+
+                <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const msg = filteredMessages[virtualRow.index];
+                    if (!msg) return null;
+                    const isOwn = String(msg.senderId) === String(currentUserId);
+                    const sender = users.find((u) => u.id === msg.senderId);
+                    const showUnreadDivider = msg.id === firstUnreadMessageId;
+
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={virtualRow.index}
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        {showUnreadDivider && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              margin: "16px 0",
+                            }}
+                          >
+                            <div style={{ flex: 1, height: 1, background: "#ff4d4f" }} />
+                            <span style={{ fontSize: "12px", color: "#ff4d4f", fontWeight: 600 }}>
+                              Unread messages
+                            </span>
+                            <div style={{ flex: 1, height: 1, background: "#ff4d4f" }} />
+                          </div>
+                        )}
+                        <MessageItem
+                          msg={msg}
+                          isOwn={isOwn}
+                          isChannelView={activeConversation.type === "channel"}
+                          senderName={sender?.name}
+                          currentUserId={currentUserId}
+                          users={users}
+                          onPreviewImage={setPreviewImage}
+                          onReact={handleAddReaction}
+                          onReply={setReplyingTo}
+                          onEdit={handleEditClick}
+                          onDelete={handleDeleteMessage}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {typingUsers[activeConversation.id] &&
+                  typingUsers[activeConversation.id].length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "6px",
+                        alignItems: "center",
+                        opacity: 0.6,
+                        fontSize: "12px",
+                        margin: "8px 0",
+                      }}
+                    >
+                      <Spin size="small" />
+                      <span>
+                        {typingUsers[activeConversation.id].join(", ")}{" "}
+                        typing...
+                      </span>
+                    </div>
+                  )}
+              </div>
+            )}
 
             {/* Input Panel */}
             <div
@@ -2392,5 +2407,39 @@ export default function ChatPage() {
         </Form>
       </Modal>
     </Layout>
+  );
+}
+
+const ChatSkeleton = () => {
+  return (
+    <div 
+      className="flex flex-col gap-4 p-6 h-full overflow-y-auto bg-[#efeae2] animate-pulse"
+      style={{ flex: 1 }}
+    >
+      {Array.from({ length: 10 }).map((_, i) => {
+        const isOwn = i % 3 === 0;
+        const widthClass = i % 4 === 0 
+          ? "w-2/3" 
+          : i % 4 === 1 
+            ? "w-1/2" 
+            : i % 4 === 2 
+              ? "w-3/4" 
+              : "w-1/3";
+        return (
+          <div
+            key={i}
+            className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`h-12 rounded-2xl ${widthClass} ${
+                isOwn 
+                  ? "bg-sky-200/60 rounded-tr-none" 
+                  : "bg-white/80 rounded-tl-none"
+              }`}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }
