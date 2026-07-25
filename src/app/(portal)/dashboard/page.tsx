@@ -181,11 +181,11 @@ export default function DashboardPage() {
 
   if (loading || !data) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div className="flex flex-col gap-6">
         <Row gutter={[24, 24]}>
           {Array.from({ length: 5 }).map((_, idx) => (
-            <Col key={idx} xs={24} sm={12} lg={4} style={{ flexGrow: 1 }}>
-              <Card bordered={false} style={{ borderRadius: '20px' }}>
+            <Col key={idx} xs={24} sm={12} lg={4} className="grow">
+              <Card bordered={false} className="rounded-[20px]">
                 <Skeleton active paragraph={{ rows: 1 }} title={false} />
               </Card>
             </Col>
@@ -193,12 +193,12 @@ export default function DashboardPage() {
         </Row>
         <Row gutter={[24, 24]}>
           <Col xs={24} lg={16}>
-            <Card bordered={false} style={{ borderRadius: '24px' }}>
+            <Card bordered={false} className="rounded-3xl">
               <Skeleton active paragraph={{ rows: 6 }} />
             </Card>
           </Col>
           <Col xs={24} lg={8}>
-            <Card bordered={false} style={{ borderRadius: '24px' }}>
+            <Card bordered={false} className="rounded-3xl">
               <Skeleton active paragraph={{ rows: 6 }} />
             </Card>
           </Col>
@@ -208,24 +208,24 @@ export default function DashboardPage() {
   }
 
   const cards = [
-    { title: 'Total Employees', value: data.totalEmployees, icon: <UserOutlined style={{ color: '#38bdf8' }} />, bg: '#e0f2fe' },
-    { title: 'Present Today', value: data.presentToday, icon: <CalendarOutlined style={{ color: '#10b981' }} />, bg: '#d1fae5' },
-    { title: 'Absent Today', value: data.absentToday, icon: <WarningOutlined style={{ color: '#f43f5e' }} />, bg: '#ffe4e6' },
-    { title: 'Pending Leaves', value: data.pendingLeaves, icon: <ClockCircleOutlined style={{ color: '#f59e0b' }} />, bg: '#fef3c7' },
-    { title: 'Departments', value: data.departmentsCount, icon: <ProfileOutlined style={{ color: '#6366f1' }} />, bg: '#e0e7ff' },
+    { title: 'Total Employees', value: data.totalEmployees, icon: <UserOutlined className="text-sky-400" />, bgClass: 'bg-sky-100' },
+    { title: 'Present Today', value: data.presentToday, icon: <CalendarOutlined className="text-emerald-500" />, bgClass: 'bg-emerald-100' },
+    { title: 'Absent Today', value: data.absentToday, icon: <WarningOutlined className="text-rose-500" />, bgClass: 'bg-rose-100' },
+    { title: 'Pending Leaves', value: data.pendingLeaves, icon: <ClockCircleOutlined className="text-amber-500" />, bgClass: 'bg-amber-100' },
+    { title: 'Departments', value: data.departmentsCount, icon: <ProfileOutlined className="text-indigo-500" />, bgClass: 'bg-indigo-100' },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="flex flex-col gap-6">
       {/* Attendance Logger Row */}
       {employeeId && (
-        <Card bordered={false} style={{ borderRadius: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <ClockCircleOutlined style={{ fontSize: '24px', color: '#0284c7' }} />
+        <Card bordered={false} className="rounded-3xl shadow-sm">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <ClockCircleOutlined className="text-2xl text-[#0284c7]" />
               <div>
-                <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>Attendance Logger</h4>
-                <p style={{ margin: 0, fontSize: '12px', color: '#8c8c8c' }}>
+                <h4 className="m-0 text-base font-bold text-slate-800">Attendance Logger</h4>
+                <p className="m-0 text-xs text-slate-400">
                   {todayRecord ? (
                     todayRecord.clockOut 
                       ? `Last session: clocked out at ${todayRecord.clockOut}`
@@ -235,20 +235,20 @@ export default function DashboardPage() {
               </div>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>Working Hours Today</span>
-                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold', color: '#0284c7', minWidth: '100px' }}>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-xs text-slate-400">Working Hours Today</span>
+                <h3 className="m-0 text-xl font-bold text-[#0284c7] min-w-[100px]">
                   {formatSeconds(secondsToday)}
                 </h3>
               </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div className="flex gap-3">
                 <Button
                   type="primary"
                   onClick={handleClockIn}
                   loading={clockInLoading}
                   disabled={clockInLoading || !!(todayRecord && !todayRecord.clockOut)}
-                  style={{ background: '#10b981', borderColor: '#10b981', borderRadius: '12px', fontWeight: 'bold' }}
+                  className="bg-emerald-500 border-emerald-500 rounded-xl font-bold text-white hover:bg-emerald-600 hover:border-emerald-600"
                 >
                   Clock In
                 </Button>
@@ -258,7 +258,7 @@ export default function DashboardPage() {
                   onClick={handleClockOut}
                   loading={clockOutLoading}
                   disabled={clockOutLoading || !todayRecord || !!todayRecord.clockOut}
-                  style={{ borderRadius: '12px', fontWeight: 'bold' }}
+                  className="rounded-xl font-bold"
                 >
                   Clock Out
                 </Button>
@@ -271,23 +271,13 @@ export default function DashboardPage() {
       {/* Metric Cards Row */}
       <Row gutter={[24, 24]}>
         {cards.map((card, idx) => (
-          <Col key={idx} xs={24} sm={12} lg={4} style={{ flexGrow: 1 }}>
-            <Card bordered={false} style={{ borderRadius: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <Col key={idx} xs={24} sm={12} lg={4} className="grow">
+            <Card bordered={false} className="rounded-[20px] shadow-sm">
               <Statistic
-                title={<span style={{ color: '#8c8c8c', fontSize: '14px' }}>{card.title}</span>}
+                title={<span className="text-slate-400 text-sm">{card.title}</span>}
                 value={card.value}
                 prefix={
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '12px',
-                    background: card.bg,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '8px',
-                    fontSize: '18px',
-                  }}>
+                  <div className={`w-[38px] h-[38px] rounded-xl flex items-center justify-center mr-2 text-lg ${card.bgClass}`}>
                     {card.icon}
                   </div>
                 }
@@ -301,8 +291,8 @@ export default function DashboardPage() {
       {/* Main Charts Row */}
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          <Card title="Attendance Trend (Last 5 Days)" bordered={false} style={{ borderRadius: '24px' }}>
-            <div style={{ height: '320px' }}>
+          <Card title="Attendance Trend (Last 5 Days)" bordered={false} className="rounded-3xl">
+            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.attendanceTrend}>
                   <defs>
@@ -325,8 +315,8 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card title="Department Distribution" bordered={false} style={{ borderRadius: '24px' }}>
-            <div style={{ height: '320px' }}>
+          <Card title="Department Distribution" bordered={false} className="rounded-3xl">
+            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -355,8 +345,8 @@ export default function DashboardPage() {
       {/* Birthdays & Activities Row */}
       <Row gutter={[24, 24]}>
         <Col xs={24} md={12} lg={8}>
-          <Card title="Leave Statistics by Type" bordered={false} style={{ borderRadius: '24px' }}>
-            <div style={{ height: '280px' }}>
+          <Card title="Leave Statistics by Type" bordered={false} className="rounded-3xl">
+            <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.leaveStatistics}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -371,16 +361,16 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} md={12} lg={8}>
-          <Card title="Upcoming Birthdays" bordered={false} style={{ borderRadius: '24px', minHeight: '328px' }}>
+          <Card title="Upcoming Birthdays" bordered={false} className="rounded-3xl min-h-[328px]">
             <List
               itemLayout="horizontal"
               dataSource={data.upcomingBirthdays}
               locale={{ emptyText: 'No birthdays this month' }}
               renderItem={(bday) => (
-                <List.Item actions={[<GiftOutlined style={{ color: '#ec4899', fontSize: '18px' }} />]}>
+                <List.Item actions={[<GiftOutlined className="text-pink-500 text-lg" />]}>
                   <List.Item.Meta
-                    avatar={<Avatar style={{ backgroundColor: '#0284c7' }}>{bday.name.charAt(0)}</Avatar>}
-                    title={<span style={{ fontWeight: 'semibold' }}>{bday.name}</span>}
+                    avatar={<Avatar className="bg-[#0284c7]">{bday.name.charAt(0)}</Avatar>}
+                    title={<span className="font-semibold text-slate-700">{bday.name}</span>}
                     description={`Born: ${bday.dob}`}
                   />
                 </List.Item>
@@ -390,14 +380,14 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card title="Recent Activity" bordered={false} style={{ borderRadius: '24px', minHeight: '328px' }}>
+          <Card title="Recent Activity" bordered={false} className="rounded-3xl min-h-[328px]">
             <List
               itemLayout="horizontal"
               dataSource={data.recentActivities}
               renderItem={(act) => (
                 <List.Item>
                   <List.Item.Meta
-                    title={<span style={{ fontSize: '13px', fontWeight: 'medium' }}>{act.activity}</span>}
+                    title={<span className="text-xs font-medium text-slate-700">{act.activity}</span>}
                     description={act.time}
                   />
                 </List.Item>

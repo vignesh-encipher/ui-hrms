@@ -58,69 +58,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#0f172a',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 relative overflow-hidden">
       {/* Background blobs */}
-      <div style={{
-        position: 'absolute',
-        top: '25%',
-        left: '25%',
-        width: '384px',
-        height: '384px',
-        background: 'rgba(14, 165, 233, 0.15)',
-        borderRadius: '50%',
-        filter: 'blur(80px)',
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '25%',
-        right: '25%',
-        width: '384px',
-        height: '384px',
-        background: 'rgba(99, 102, 241, 0.15)',
-        borderRadius: '50%',
-        filter: 'blur(80px)',
-      }} />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-500/15 rounded-full blur-[80px]" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-[80px]" />
 
       <Card
-        style={{
-          width: '100%',
-          maxWidth: '400px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '24px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          zIndex: 10,
-        }}
+        className="w-full max-w-[400px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10"
         bodyStyle={{ padding: '32px' }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '16px',
-            backgroundColor: '#0284c7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: '20px',
-            margin: '0 auto 16px auto',
-            boxShadow: '0 10px 15px -3px rgba(2, 132, 199, 0.3)',
-          }}>
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-[#0284c7] flex items-center justify-center text-white font-bold text-xl mx-auto mb-4 shadow-lg shadow-[#0284c7]/30">
             H
           </div>
-          <h2 style={{ color: '#fff', margin: '0 0 4px 0', fontSize: '24px', fontWeight: 'bold' }}>Welcome Back</h2>
-          <p style={{ color: '#94a3b8', margin: 0, fontSize: '14px' }}>Sign in to manage your HR account</p>
+          <h2 className="text-white m-0 mb-1 text-2xl font-bold">Welcome Back</h2>
+          <p className="text-slate-400 m-0 text-sm">Sign in to manage your HR account</p>
         </div>
 
         <Form
@@ -135,12 +87,9 @@ export default function LoginPage() {
             rules={[{ required: true, message: 'Please input your username!' }]}
           >
             <Input
-              className="login-input"
-              prefix={<UserOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
+              className="login-input rounded-xl"
+              prefix={<UserOutlined className="text-white/65" />}
               placeholder="Username"
-              style={{
-                borderRadius: '12px',
-              }}
             />
           </Form.Item>
 
@@ -149,30 +98,18 @@ export default function LoginPage() {
             rules={[{ required: true, message: 'Please input your password!' }]}
           >
             <Input.Password
-              className="login-input"
-              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
+              className="login-input rounded-xl"
+              prefix={<LockOutlined className="text-white/65" />}
               placeholder="Password"
-              style={{
-                borderRadius: '12px',
-              }}
             />
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0 }}>
+          <Form.Item className="mb-0">
             <Button
               type="primary"
               htmlType="submit"
               loading={loading}
-              style={{
-                width: '100%',
-                height: '46px',
-                borderRadius: '12px',
-                background: '#0284c7',
-                border: 'none',
-                fontWeight: 'bold',
-                boxShadow: '0 10px 15px -3px rgba(2, 132, 199, 0.3)',
-                marginTop: '8px',
-              }}
+              className="w-full h-[46px] rounded-xl bg-[#0284c7] border-none font-bold shadow-lg shadow-[#0284c7]/30 mt-2"
             >
               Sign In
             </Button>

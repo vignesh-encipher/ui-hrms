@@ -28,25 +28,12 @@ export default function Header() {
 
   return (
     <AntdHeader
-      style={{
-        padding: '0 24px',
-        background: themeMode === 'dark' ? '#141414' : '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'between',
-        height: '64px',
-        lineHeight: '64px',
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        left: '256px',
-        zIndex: 90,
-        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-        transition: 'background 0.2s',
-      }}
+      className={`px-6 flex items-center justify-between h-16 fixed top-0 right-0 left-[256px] z-[90] border-b border-slate-100 transition-colors duration-200 leading-[4rem] ${
+        themeMode === 'dark' ? 'bg-[#141414]' : 'bg-white'
+      }`}
     >
-      <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>{getPageTitle()}</h2>
+      <div className="flex w-full justify-between items-center">
+        <h2 className="m-0 text-lg font-bold text-slate-800">{getPageTitle()}</h2>
 
         <Space size={16}>
           {/* Theme Toggle */}
@@ -55,7 +42,7 @@ export default function Header() {
             shape="circle"
             icon={themeMode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
             onClick={() => dispatch(toggleTheme())}
-            style={{ fontSize: '16px' }}
+            className="text-base"
           />
 
           {/* Notifications */}
@@ -65,16 +52,16 @@ export default function Header() {
               shape="circle"
               icon={<BellOutlined />}
               onClick={() => router.push('/chat')}
-              style={{ fontSize: '16px' }}
+              className="text-base"
             />
           </Badge>
 
           {/* User profile brief */}
-          <Space size={8} style={{ borderLeft: '1px solid rgba(0, 0, 0, 0.06)', paddingLeft: '16px' }}>
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#0284c7' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'semibold' }}>{username || 'User'}</span>
-              <span style={{ fontSize: '10px', color: '#8c8c8c', textTransform: 'uppercase' }}>
+          <Space size={8} className="border-l border-slate-100 pl-4">
+            <Avatar icon={<UserOutlined />} className="bg-[#0284c7]" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold text-slate-700">{username || 'User'}</span>
+              <span className="text-[10px] text-slate-400 uppercase">
                 {roles[0]?.replace('ROLE_', '') || 'Employee'}
               </span>
             </div>

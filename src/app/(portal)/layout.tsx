@@ -26,18 +26,18 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   if (!mounted || !isAuthenticated || isFirstLogin) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="flex h-screen items-center justify-center">
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="min-h-screen">
       <Sidebar />
-      <Layout style={{ marginLeft: 256, transition: 'all 0.2s' }}>
+      <Layout className="ml-64 transition-all duration-200">
         <Header />
-        <Content style={{ margin: '88px 24px 24px 24px', minHeight: 280 }}>
+        <Content className="mt-[88px] mx-6 mb-6 min-h-[280px]">
           {children}
         </Content>
       </Layout>

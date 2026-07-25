@@ -44,45 +44,17 @@ export default function ChangePasswordPage() {
 
   if (success) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#0f172a',
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '24px',
-      }}>
-        <div style={{
-          position: 'absolute',
-          top: '25%',
-          left: '25%',
-          width: '384px',
-          height: '384px',
-          background: 'rgba(14, 165, 233, 0.15)',
-          borderRadius: '50%',
-          filter: 'blur(80px)',
-        }} />
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 relative overflow-hidden p-6">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-500/15 rounded-full blur-[80px]" />
         <Card
-          style={{
-            width: '100%',
-            maxWidth: '500px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '24px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            zIndex: 10,
-            textAlign: 'center',
-          }}
+          className="w-full max-w-[500px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10 text-center"
           bodyStyle={{ padding: '40px 32px' }}
         >
           <Result
             status="success"
-            title={<span style={{ color: '#fff', fontSize: '22px', fontWeight: 'bold' }}>Password Updated!</span>}
+            title={<span className="text-white text-2xl font-bold">Password Updated!</span>}
             subTitle={
-              <Text style={{ color: '#94a3b8', fontSize: '15px', display: 'block', margin: '16px 0 24px 0' }}>
+              <Text className="text-slate-400 text-[15px] block my-5">
                 Your password has been changed successfully. Please log in again using your new password.
               </Text>
             }
@@ -91,15 +63,7 @@ export default function ChangePasswordPage() {
                 type="primary"
                 key="login"
                 onClick={() => router.push('/login')}
-                style={{
-                  height: '46px',
-                  borderRadius: '12px',
-                  background: '#0284c7',
-                  border: 'none',
-                  fontWeight: 'bold',
-                  boxShadow: '0 10px 15px -3px rgba(2, 132, 199, 0.3)',
-                  padding: '0 32px',
-                }}
+                className="h-[46px] rounded-xl bg-[#0284c7] border-none font-bold shadow-lg shadow-[#0284c7]/30 px-8"
               >
                 Go to Login
               </Button>
@@ -111,70 +75,21 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#0f172a',
-      position: 'relative',
-      overflow: 'hidden',
-      padding: '24px',
-    }}>
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 relative overflow-hidden p-6">
       {/* Decorative Blur Blobs */}
-      <div style={{
-        position: 'absolute',
-        top: '20%',
-        left: '20%',
-        width: '400px',
-        height: '400px',
-        background: 'rgba(14, 165, 233, 0.15)',
-        borderRadius: '50%',
-        filter: 'blur(100px)',
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '20%',
-        right: '20%',
-        width: '400px',
-        height: '400px',
-        background: 'rgba(99, 102, 241, 0.15)',
-        borderRadius: '50%',
-        filter: 'blur(100px)',
-      }} />
+      <div className="absolute top-[20%] left-[20%] w-[400px] h-[400px] bg-sky-500/15 rounded-full blur-[100px]" />
+      <div className="absolute bottom-[20%] right-[20%] w-[400px] h-[400px] bg-indigo-500/15 rounded-full blur-[100px]" />
 
       <Card
-        style={{
-          width: '100%',
-          maxWidth: '450px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '24px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          zIndex: 10,
-        }}
+        className="w-full max-w-[450px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10"
         bodyStyle={{ padding: '32px' }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '16px',
-            backgroundColor: '#0284c7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: '20px',
-            margin: '0 auto 16px auto',
-            boxShadow: '0 10px 15px -3px rgba(2, 132, 199, 0.3)',
-          }}>
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-[#0284c7] flex items-center justify-center text-white font-bold text-xl mx-auto mb-4 shadow-lg shadow-[#0284c7]/30">
             P
           </div>
-          <h2 style={{ color: '#fff', margin: '0 0 4px 0', fontSize: '24px', fontWeight: 'bold' }}>Secure Your Account</h2>
-          <p style={{ color: '#94a3b8', margin: 0, fontSize: '14px' }}>Please update your password to continue</p>
+          <h2 className="text-white m-0 mb-1 text-2xl font-bold">Secure Your Account</h2>
+          <p className="text-slate-400 m-0 text-sm">Please update your password to continue</p>
         </div>
 
         <Alert
@@ -182,13 +97,7 @@ export default function ChangePasswordPage() {
           description="Since this is your first login, a password update is mandatory for security purposes."
           type="info"
           showIcon
-          style={{
-            marginBottom: '24px',
-            background: 'rgba(14, 165, 233, 0.1)',
-            border: '1px solid rgba(14, 165, 233, 0.2)',
-            color: '#e0f2fe',
-            borderRadius: '12px',
-          }}
+          className="mb-6 bg-sky-500/10 border border-sky-500/20 text-sky-100 rounded-xl"
         />
 
         <Form
@@ -199,19 +108,19 @@ export default function ChangePasswordPage() {
         >
           <Form.Item
             name="oldPassword"
-            label={<span style={{ color: '#cbd5e1' }}>Current Password</span>}
+            label={<span className="text-slate-300">Current Password</span>}
             rules={[{ required: true, message: 'Please enter your current temporary password' }]}
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
+              prefix={<LockOutlined className="text-white/65" />}
               placeholder="Current Password"
-              style={{ borderRadius: '12px' }}
+              className="rounded-xl"
             />
           </Form.Item>
 
           <Form.Item
             name="newPassword"
-            label={<span style={{ color: '#cbd5e1' }}>New Password</span>}
+            label={<span className="text-slate-300">New Password</span>}
             rules={[
               { required: true, message: 'Please enter your new password' },
               { min: 8, message: 'Password must be at least 8 characters long' },
@@ -243,15 +152,15 @@ export default function ChangePasswordPage() {
             hasFeedback
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
+              prefix={<LockOutlined className="text-white/65" />}
               placeholder="New Password"
-              style={{ borderRadius: '12px' }}
+              className="rounded-xl"
             />
           </Form.Item>
 
           <Form.Item
             name="confirmPassword"
-            label={<span style={{ color: '#cbd5e1' }}>Confirm New Password</span>}
+            label={<span className="text-slate-300">Confirm New Password</span>}
             dependencies={['newPassword']}
             rules={[
               { required: true, message: 'Please confirm your new password' },
@@ -267,27 +176,18 @@ export default function ChangePasswordPage() {
             hasFeedback
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
+              prefix={<LockOutlined className="text-white/65" />}
               placeholder="Confirm New Password"
-              style={{ borderRadius: '12px' }}
+              className="rounded-xl"
             />
           </Form.Item>
 
-          <Form.Item style={{ marginBottom: 0, marginTop: '24px' }}>
+          <Form.Item className="mb-0 mt-6">
             <Button
               type="primary"
               htmlType="submit"
               loading={loading}
-              style={{
-                width: '100%',
-                height: '46px',
-                borderRadius: '12px',
-                background: '#0284c7',
-                border: 'none',
-                fontWeight: 'bold',
-                boxShadow: '0 10px 15px -3px rgba(2, 132, 199, 0.3)',
-                marginBottom: '12px',
-              }}
+              className="w-full h-[46px] rounded-xl bg-[#0284c7] border-none font-bold shadow-lg shadow-[#0284c7]/30 mb-3"
             >
               Update Password
             </Button>
@@ -295,17 +195,7 @@ export default function ChangePasswordPage() {
             <Button
               type="text"
               onClick={handleCancel}
-              style={{
-                width: '100%',
-                height: '46px',
-                borderRadius: '12px',
-                color: '#94a3b8',
-                fontWeight: 'medium',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-              }}
+              className="w-full h-[46px] rounded-xl text-slate-400 font-medium flex items-center justify-center gap-2 hover:text-slate-300"
             >
               <ArrowLeftOutlined /> Back to Login
             </Button>

@@ -97,14 +97,7 @@ export default function PayrollPage() {
     { title: 'Deductions', dataIndex: 'deductions', key: 'deductions', render: (val: number) => `$${val.toLocaleString()}` },
     { title: 'Net Salary', dataIndex: 'netSalary', key: 'netSalary', render: (val: number) => <strong>${val.toLocaleString()}</strong> },
     { title: 'Status', dataIndex: 'status', key: 'status', render: (val: string) => (
-      <span style={{
-        padding: '3px 8px',
-        borderRadius: '12px',
-        fontSize: '11px',
-        fontWeight: 'bold',
-        background: '#d1fae5',
-        color: '#065f46',
-      }}>{val}</span>
+      <span className="px-2 py-0.5 rounded-xl text-[11px] font-bold bg-emerald-100 text-emerald-800">{val}</span>
     )},
     {
       title: 'Payslip',
@@ -121,19 +114,19 @@ export default function PayrollPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <Card bordered={false} style={{ borderRadius: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="flex flex-col gap-5">
+      <Card bordered={false} className="rounded-3xl">
+        <div className="flex justify-between items-center">
           <div>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>Payroll & Payslips</h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#8c8c8c' }}>View salary breakdowns and download payslips</p>
+            <h3 className="m-0 text-lg font-bold text-slate-800">Payroll & Payslips</h3>
+            <p className="mt-1 m-0 text-xs text-slate-400">View salary breakdowns and download payslips</p>
           </div>
           {isHR && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setIsOpen(true)}
-              style={{ borderRadius: '12px', background: '#0284c7' }}
+              className="rounded-xl bg-[#0284c7]"
             >
               Run Payroll
             </Button>
@@ -141,14 +134,14 @@ export default function PayrollPage() {
         </div>
       </Card>
 
-      <Card bordered={false} style={{ borderRadius: '24px' }} bodyStyle={{ padding: 0 }}>
+      <Card bordered={false} className="rounded-3xl" bodyStyle={{ padding: 0 }}>
         <Table
           dataSource={history}
           columns={columns}
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 5 }}
-          style={{ borderRadius: '24px', overflow: 'hidden' }}
+          className="rounded-3xl overflow-hidden"
         />
       </Card>
 
@@ -165,26 +158,26 @@ export default function PayrollPage() {
           form={form}
           layout="vertical"
           onFinish={handleGenerate}
-          style={{ paddingRight: '10px' }}
+          className="pr-2.5"
           initialValues={{ month: 'January', year: 2026, basic: 0, hra: 0, allowance: 0, bonus: 0, deductions: 0 }}
         >
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
             <Select
               placeholder="Choose Employee"
-              style={{ borderRadius: '8px' }}
+              className="rounded-lg"
               options={employees.map((emp) => ({ value: emp.employeeId, label: `${emp.firstName} ${emp.lastName} (${emp.employeeId})` }))}
             />
           </Form.Item>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-2 gap-4">
             <Form.Item name="month" label="Month">
               <Select
-                style={{ borderRadius: '8px' }}
+                className="rounded-lg"
                 options={['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => ({ value: m, label: m }))}
               />
             </Form.Item>
             <Form.Item name="year" label="Year">
               <Select
-                style={{ borderRadius: '8px' }}
+                className="rounded-lg"
                 options={[
                   { value: 2026, label: '2026' },
                   { value: 2025, label: '2025' }
@@ -192,25 +185,25 @@ export default function PayrollPage() {
               />
             </Form.Item>
             <Form.Item name="basic" label="Basic Salary">
-              <Input type="number" style={{ borderRadius: '8px' }} />
+              <Input type="number" className="rounded-lg" />
             </Form.Item>
             <Form.Item name="hra" label="HRA">
-              <Input type="number" style={{ borderRadius: '8px' }} />
+              <Input type="number" className="rounded-lg" />
             </Form.Item>
             <Form.Item name="allowance" label="Allowance">
-              <Input type="number" style={{ borderRadius: '8px' }} />
+              <Input type="number" className="rounded-lg" />
             </Form.Item>
             <Form.Item name="bonus" label="Bonus">
-              <Input type="number" style={{ borderRadius: '8px' }} />
+              <Input type="number" className="rounded-lg" />
             </Form.Item>
           </div>
           <Form.Item name="deductions" label="Deductions">
-            <Input type="number" style={{ borderRadius: '8px' }} />
+            <Input type="number" className="rounded-lg" />
           </Form.Item>
 
-          <div style={{ display: 'flex', justifyContent: 'end', gap: '12px', marginTop: '24px' }}>
-            <Button onClick={() => setIsOpen(false)} style={{ borderRadius: '8px' }}>Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} style={{ borderRadius: '8px', background: '#0284c7' }}>Generate</Button>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button onClick={() => setIsOpen(false)} className="rounded-lg">Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} className="rounded-lg bg-[#0284c7]">Generate</Button>
           </div>
         </Form>
       </Modal>

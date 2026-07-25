@@ -50,7 +50,7 @@ export default function Sidebar() {
     {
       key: '/chat',
       label: (
-        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <span className="flex justify-between items-center w-full">
           Chat & Comm
           {chatUnread > 0 && <Badge count={chatUnread} size="small" overflowCount={99} />}
         </span>
@@ -79,36 +79,17 @@ export default function Sidebar() {
       breakpoint="lg"
       collapsedWidth="0"
       width={256}
-      style={{
-        height: '100vh',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        zIndex: 100,
-        borderRight: '1px solid rgba(0, 0, 0, 0.06)',
-      }}
+      className="h-screen fixed left-0 top-0 bottom-0 z-[100] border-r border-slate-100"
       theme="light"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <div style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(0, 0, 0, 0.06)' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
-            backgroundColor: '#0284c7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: '18px',
-          }}>
+      <div className="flex flex-col h-full">
+        <div className="p-6 flex items-center gap-3 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
             H
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', lineHeight: '1.2' }}>HRMS Portal</h1>
-            <span style={{ fontSize: '12px', color: '#8c8c8c' }}>Enterprise Suite</span>
+            <h1 className="m-0 text-base font-bold leading-snug text-slate-800">HRMS Portal</h1>
+            <span className="text-xs text-slate-400">Enterprise Suite</span>
           </div>
         </div>
 
@@ -117,16 +98,16 @@ export default function Sidebar() {
           selectedKeys={getSelectedKey()}
           items={filteredItems}
           onClick={({ key }) => router.push(key)}
-          style={{ flex: 1, paddingTop: '16px', borderRight: 0 }}
+          className="flex-1 pt-4 border-r-0"
         />
 
-        <div style={{ padding: '16px', borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
+        <div className="p-4 border-t border-slate-100">
           <Button
             type="text"
             danger
             icon={<LogoutOutlined />}
             onClick={handleLogout}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', height: '40px', borderRadius: '8px' }}
+            className="w-full flex items-center gap-2 h-10 rounded-lg"
           >
             Logout
           </Button>
