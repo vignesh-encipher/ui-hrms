@@ -54,9 +54,9 @@ export default function ChangePasswordPage() {
             status="success"
             title={<span className="text-white text-2xl font-bold">Password Updated!</span>}
             subTitle={
-              <Text className="text-slate-400 text-[15px] block my-5">
+              <span className="!text-slate-300 !text-[15px] !block !my-5">
                 Your password has been changed successfully. Please log in again using your new password.
-              </Text>
+              </span>
             }
             extra={[
               <Button
