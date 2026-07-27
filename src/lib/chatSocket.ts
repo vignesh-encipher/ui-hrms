@@ -296,6 +296,16 @@ class ChatSocketManager {
         break;
       }
 
+      case 'CHANNEL_DELETED': {
+        store.dispatch(removeChannel(event.channelId));
+        if (state.chat.activeConversation?.id === event.channelId) {
+          store.dispatch(clearActiveConversation());
+          antdMessage.info('This channel has been deleted');
+        }
+        this.refetchChannels();
+        break;
+      }
+
       case 'REMOVED_FROM_CHANNEL': {
         store.dispatch(removeChannel(event.channelId));
         if (state.chat.activeConversation?.id === event.channelId) {

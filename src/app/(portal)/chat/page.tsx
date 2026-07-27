@@ -44,6 +44,7 @@ import {
   Select,
   Dropdown,
   Switch,
+  Popconfirm,
 } from "antd";
 import {
   FiSearch,
@@ -75,6 +76,8 @@ import {
   FiVolume2,
   FiVolumeX,
   FiSettings,
+  FiChevronDown,
+  FiChevronRight,
 } from "react-icons/fi";
 import { MdPushPin } from "react-icons/md";
 
@@ -188,6 +191,10 @@ export default function ChatPage() {
   const [messageSearchQuery, setMessageSearchQuery] = useState<string>("");
   const [isSearchingInChat, setIsSearchingInChat] = useState<boolean>(false);
   const [inputText, setInputText] = useState<string>("");
+  const [isChannelsCollapsed, setIsChannelsCollapsed] = useState<boolean>(false);
+  const [isDirectMessagesCollapsed, setIsDirectMessagesCollapsed] = useState<boolean>(false);
+  const [isLeavePopconfirmOpen, setIsLeavePopconfirmOpen] = useState<boolean>(false);
+  const [isDeletePopconfirmOpen, setIsDeletePopconfirmOpen] = useState<boolean>(false);
 
   const [isNewChatModalVisible, setIsNewChatModalVisible] = useState<boolean>(false);
   const [newChatSearch, setNewChatSearch] = useState<string>("");
@@ -243,6 +250,15 @@ export default function ChatPage() {
     fetchConversations();
     fetchChannels();
   }, []);
+
+  // Automatically open or collapse sections based on whether they contain data
+  useEffect(() => {
+    setIsChannelsCollapsed(channels.length === 0);
+  }, [channels.length]);
+
+  useEffect(() => {
+    setIsDirectMessagesCollapsed(conversations.length === 0);
+  }, [conversations.length]);
 
   // Reset the "have we done the initial scroll yet" bookkeeping whenever the open
   // conversation changes, so each conversation gets its own unread-anchor/bottom-scroll.
@@ -599,63 +615,58 @@ export default function ChatPage() {
       message.error("Failed to create channel");
     }
   };
-
-  // Add Members
+  // Add Members in bulk
   const handleAddMembers = async () => {
     if (!membersToAdd || membersToAdd.length === 0 || !activeConversation)
       return;
     try {
-      await Promise.all(
-        membersToAdd.map((userId) =>
-          API.post(`/chat/channels/${activeConversation.id}/members`, {
-            userId,
-          }),
-        ),
-      );
+      await API.post(`/chat/channels/${activeConversation.id}/members`, {
+        userIds: membersToAdd,
+      });
       message.success("Members added successfully");
       setMembersToAdd([]);
       fetchChannelMembers(activeConversation.id);
       fetchChannels();
-    } catch (err) {
-      message.error("Failed to add some members");
+    } catch (err: any) {
+      message.error(err.response?.data || "Failed to add members");
       fetchChannelMembers(activeConversation.id);
       fetchChannels();
     }
   };
 
-  // Remove Member
-  const handleRemoveMember = async (userId: string) => {
+  // Remove Member API call
+  const executeRemoveMember = async (userId: string) => {
     if (!activeConversation) return;
     try {
       await API.delete(
-        `/chat/channels/${activeConversation.id}/members/${userId}`,
+        `/chat/channels/${activeConversation.id}/members/${userId}`
       );
       message.success("Member removed");
       fetchChannelMembers(activeConversation.id);
       fetchChannels();
-    } catch (err) {
-      message.error("Failed to remove member");
+    } catch (err: any) {
+      message.error(err.response?.data || "Failed to remove member");
     }
   };
 
-  // Leave Channel
-  const handleLeaveChannel = async () => {
+  // Leave Channel API call
+  const executeLeaveChannel = async () => {
     if (!activeConversation) return;
     try {
       await API.delete(
-        `/chat/channels/${activeConversation.id}/members/${currentUserId}`,
+        `/chat/channels/${activeConversation.id}/members/${currentUserId}`
       );
       message.success("You left the channel");
       setIsInfoDrawerVisible(false);
       setActiveConversation(null);
       fetchChannels();
-    } catch (err) {
-      message.error("Failed to leave channel");
+    } catch (err: any) {
+      message.error(err.response?.data || "Failed to leave channel");
     }
   };
 
-  // Delete Channel
-  const handleDeleteChannel = async () => {
+  // Delete Channel API call
+  const executeDeleteChannel = async () => {
     if (!activeConversation) return;
     try {
       await API.delete(`/chat/channels/${activeConversation.id}`);
@@ -663,12 +674,12 @@ export default function ChatPage() {
       setIsInfoDrawerVisible(false);
       setActiveConversation(null);
       fetchChannels();
-    } catch (err) {
-      message.error("Failed to delete channel");
+    } catch (err: any) {
+      message.error(err.response?.data || "Failed to delete channel");
     }
   };
 
-  // Edit Channel
+  // Edit Channel with unique constraint handling
   const handleEditChannel = async (values: any) => {
     if (!activeConversation) return;
     try {
@@ -680,11 +691,11 @@ export default function ChatPage() {
       message.success("Channel updated successfully");
       setIsEditChannelModalVisible(false);
       setActiveConversation((prev) =>
-        prev ? { ...prev, name: res.data.name } : null,
+        prev ? { ...prev, name: res.data.name } : null
       );
       fetchChannels();
-    } catch (err) {
-      message.error("Failed to update channel");
+    } catch (err: any) {
+      message.error(err.response?.data || "Failed to update channel");
     }
   };
 
@@ -863,34 +874,46 @@ export default function ChatPage() {
       }
       items.push({
         key: "leave",
-        label: "Leave Channel",
-        icon: <FiLogOut />,
-        danger: true,
-        onClick: () => {
-          Modal.confirm({
-            title: "Leave Channel",
-            content: "Are you sure you want to leave this channel?",
-            okText: "Yes, Leave",
-            cancelText: "Cancel",
-            onOk: handleLeaveChannel,
-          });
-        }
+        label: (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Popconfirm
+              title="Leave Channel"
+              description="Are you sure you want to leave this channel?"
+              onConfirm={executeLeaveChannel}
+              okText="Leave"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+              placement="left"
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#ff4d4f" }}>
+                <FiLogOut />
+                <span>Leave Channel</span>
+              </div>
+            </Popconfirm>
+          </div>
+        ),
       });
       if (isCurrentChannelAdmin) {
         items.push({
           key: "delete",
-          label: "Delete Channel",
-          icon: <FiTrash2 />,
-          danger: true,
-          onClick: () => {
-            Modal.confirm({
-              title: "Delete Channel",
-              content: "Are you sure you want to delete this channel? This action cannot be undone.",
-              okText: "Yes, Delete",
-              cancelText: "Cancel",
-              onOk: handleDeleteChannel,
-            });
-          }
+          label: (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Popconfirm
+                title="Delete Channel"
+                description="Deleting this channel will permanently remove all messages, files, and member associations. This action cannot be undone."
+                onConfirm={executeDeleteChannel}
+                okText="Delete"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true }}
+                placement="left"
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#ff4d4f" }}>
+                  <FiTrash2 />
+                  <span>Delete Channel</span>
+                </div>
+              </Popconfirm>
+            </div>
+          ),
         });
       }
       const isMuted = notificationSettings.mutedConversations.includes(activeConversation.id);
@@ -1081,11 +1104,11 @@ export default function ChatPage() {
           >
             <h3 style={{ margin: 0, fontWeight: "bold" }}>Chat Rooms</h3>
             <Space size={8}>
-              <Button
+              {/* <Button
                 shape="circle"
                 icon={<FiSettings />}
                 onClick={() => setIsSettingsModalVisible(true)}
-              />
+              /> */}
               <Button
                 type="primary"
                 shape="circle"
@@ -1121,161 +1144,45 @@ export default function ChatPage() {
         <div style={{ flex: 1, overflowY: "auto", padding: "0 8px" }}>
           {/* Channels List */}
           {(activeTab === "all" || activeTab === "channels") && (
-            <List
-              header={
+            <div style={{ marginBottom: "16px" }}>
+              <div
+                onClick={() => setIsChannelsCollapsed(!isChannelsCollapsed)}
+                style={{
+                  padding: "8px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  userSelect: "none",
+                }}
+              >
                 <span
                   style={{
-                    padding: "0 12px",
                     fontSize: "12px",
                     color: "#8c8c8c",
                     fontWeight: "bold",
+                    letterSpacing: "0.5px",
                   }}
                 >
-                  CHANNELS
+                  CHANNELS ({filteredChannels.length})
                 </span>
-              }
-              dataSource={filteredChannels}
-              renderItem={(channel) => {
-                const isSelected = activeConversation?.id === channel.id;
-                return (
-                  <List.Item
-                    onClick={() =>
-                      setActiveConversation({
-                        id: channel.id,
-                        type: "channel",
-                        name: channel.name,
-                        avatar: channel.avatar,
-                      })
-                    }
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      background: isSelected ? "#e6f7ff" : "transparent",
-                      border: "none",
-                      margin: "2px 0",
-                    }}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <Avatar
-                          icon={<FiUsers />}
-                          src={channel.avatar}
-                          style={{ backgroundColor: "#0ea5e9" }}
-                        />
-                      }
-                      title={
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <Space>
-                            <span style={{ fontWeight: (channel.unreadCount || 0) > 0 ? "bold" : "normal" }}>
-                              {channel.name}
-                            </span>
-                            {channel.type === "PRIVATE" && (
-                              <Tag
-                                color="warning"
-                                style={{ fontSize: "10px", margin: 0, padding: "0 4px" }}
-                              >
-                                Private
-                              </Tag>
-                            )}
-                          </Space>
-                          {channel.lastMessageTime && (
-                            <span style={{ fontSize: "10px", color: "#8c8c8c", fontWeight: "normal" }}>
-                              {new Date(channel.lastMessageTime).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      }
-                      description={
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span
-                            style={{
-                              textOverflow: "ellipsis",
-                              overflow: "hidden",
-                              whiteSpace: "nowrap",
-                              maxWidth: "140px",
-                              fontSize: "12px",
-                              color: (channel.unreadCount || 0) > 0 ? "#111b21" : "#8c8c8c",
-                              fontWeight: (channel.unreadCount || 0) > 0 ? "600" : "normal",
-                            }}
-                          >
-                            {channel.lastMessage || `${channel.memberCount || 1} members`}
-                          </span>
-                          {(channel.unreadCount || 0) > 0 && (
-                            <Badge
-                              count={channel.unreadCount}
-                              style={{ backgroundColor: "#10b981" }}
-                            />
-                          )}
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                );
-              }}
-            />
-          )}
-
-          {/* Direct Messages List */}
-          {(activeTab === "all" || activeTab === "direct") && (
-            <>
-              {filteredConversations.length === 0 ? (
-                <div style={{ padding: "24px 16px", textAlign: "center" }}>
-                  <div style={{ color: "#8c8c8c", marginBottom: "12px", fontSize: "13px" }}>
-                    No conversations yet. Start a new chat.
-                  </div>
-                  <Button
-                    type="primary"
-                    onClick={() => setIsNewChatModalVisible(true)}
-                  >
-                    New Chat
-                  </Button>
-                </div>
-              ) : (
+                <span style={{ fontSize: "12px", color: "#8c8c8c", display: "flex", alignItems: "center" }}>
+                  {isChannelsCollapsed ? <FiChevronRight /> : <FiChevronDown />}
+                </span>
+              </div>
+              {!isChannelsCollapsed && (
                 <List
-                  header={
-                    <div
-                      style={{
-                        padding: "0 12px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: "#8c8c8c",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        DIRECT MESSAGES
-                      </span>
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<FiPlus />}
-                        onClick={() => setIsNewChatModalVisible(true)}
-                        style={{ color: "#10b981" }}
-                      />
-                    </div>
-                  }
-                  dataSource={filteredConversations}
-                  renderItem={(c) => {
-                    const status = onlineStatuses[c.otherUserId] || c.status || "offline";
-                    const isSelected = activeConversation?.id === c.conversationId;
+                  dataSource={filteredChannels}
+                  renderItem={(channel) => {
+                    const isSelected = activeConversation?.id === channel.id;
                     return (
                       <List.Item
                         onClick={() =>
                           setActiveConversation({
-                            id: c.conversationId,
-                            type: "dm",
-                            name: c.name,
-                            avatar: c.avatar,
-                            status,
+                            id: channel.id,
+                            type: "channel",
+                            name: channel.name,
+                            avatar: channel.avatar,
                           })
                         }
                         style={{
@@ -1289,29 +1196,30 @@ export default function ChatPage() {
                       >
                         <List.Item.Meta
                           avatar={
-                            <Badge
-                              dot
-                              status={
-                                status === "online"
-                                  ? "success"
-                                  : status === "away"
-                                    ? "warning"
-                                    : "default"
-                              }
-                            >
-                              <Avatar
-                                icon={<FiUser />}
-                                src={c.avatar}
-                                style={{ backgroundColor: "#10b981" }}
-                              />
-                            </Badge>
+                            <Avatar
+                              icon={<FiUsers />}
+                              src={channel.avatar}
+                              style={{ backgroundColor: "#0ea5e9" }}
+                            />
                           }
                           title={
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontWeight: c.unreadCount > 0 ? "bold" : "normal" }}>{c.name}</span>
-                              {c.lastMessageTime && (
+                              <Space>
+                                <span style={{ fontWeight: (channel.unreadCount || 0) > 0 ? "bold" : "normal" }}>
+                                  {channel.name}
+                                </span>
+                                {channel.type === "PRIVATE" && (
+                                  <Tag
+                                    color="warning"
+                                    style={{ fontSize: "10px", margin: 0, padding: "0 4px" }}
+                                  >
+                                    Private
+                                  </Tag>
+                                )}
+                              </Space>
+                              {channel.lastMessageTime && (
                                 <span style={{ fontSize: "10px", color: "#8c8c8c", fontWeight: "normal" }}>
-                                  {new Date(c.lastMessageTime).toLocaleTimeString([], {
+                                  {new Date(channel.lastMessageTime).toLocaleTimeString([], {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })}
@@ -1328,15 +1236,15 @@ export default function ChatPage() {
                                   whiteSpace: "nowrap",
                                   maxWidth: "140px",
                                   fontSize: "12px",
-                                  color: c.unreadCount > 0 ? "#111b21" : "#8c8c8c",
-                                  fontWeight: c.unreadCount > 0 ? "600" : "normal",
+                                  color: (channel.unreadCount || 0) > 0 ? "#111b21" : "#8c8c8c",
+                                  fontWeight: (channel.unreadCount || 0) > 0 ? "600" : "normal",
                                 }}
                               >
-                                {c.lastMessage || "No messages"}
+                                {channel.lastMessage || `${channel.memberCount || 1} members`}
                               </span>
-                              {c.unreadCount > 0 && (
+                              {(channel.unreadCount || 0) > 0 && (
                                 <Badge
-                                  count={c.unreadCount}
+                                  count={channel.unreadCount}
                                   style={{ backgroundColor: "#10b981" }}
                                 />
                               )}
@@ -1348,7 +1256,150 @@ export default function ChatPage() {
                   }}
                 />
               )}
-            </>
+            </div>
+          )}
+
+          {/* Direct Messages List */}
+          {(activeTab === "all" || activeTab === "direct") && (
+            <div style={{ marginBottom: "16px" }}>
+              <div
+                onClick={() => setIsDirectMessagesCollapsed(!isDirectMessagesCollapsed)}
+                style={{
+                  padding: "8px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  userSelect: "none",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "#8c8c8c",
+                    fontWeight: "bold",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  DIRECT MESSAGES ({filteredConversations.length})
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }} onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<FiPlus />}
+                    onClick={() => setIsNewChatModalVisible(true)}
+                    style={{ color: "#10b981", height: "auto", padding: "0 4px" }}
+                  />
+                  <span style={{ fontSize: "12px", color: "#8c8c8c", display: "flex", alignItems: "center", cursor: "pointer" }} onClick={() => setIsDirectMessagesCollapsed(!isDirectMessagesCollapsed)}>
+                    {isDirectMessagesCollapsed ? <FiChevronRight /> : <FiChevronDown />}
+                  </span>
+                </div>
+              </div>
+              {!isDirectMessagesCollapsed && (
+                <>
+                  {filteredConversations.length === 0 ? (
+                    <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                      <div style={{ color: "#8c8c8c", marginBottom: "12px", fontSize: "13px" }}>
+                        No conversations yet. Start a new chat.
+                      </div>
+                      <Button
+                        type="primary"
+                        onClick={() => setIsNewChatModalVisible(true)}
+                      >
+                        New Chat
+                      </Button>
+                    </div>
+                  ) : (
+                    <List
+                      dataSource={filteredConversations}
+                      renderItem={(c) => {
+                        const status = onlineStatuses[c.otherUserId] || c.status || "offline";
+                        const isSelected = activeConversation?.id === c.conversationId;
+                        return (
+                          <List.Item
+                            onClick={() =>
+                              setActiveConversation({
+                                id: c.conversationId,
+                                type: "dm",
+                                name: c.name,
+                                avatar: c.avatar,
+                                status,
+                              })
+                            }
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: "8px",
+                              cursor: "pointer",
+                              background: isSelected ? "#e6f7ff" : "transparent",
+                              border: "none",
+                              margin: "2px 0",
+                            }}
+                          >
+                            <List.Item.Meta
+                              avatar={
+                                <Badge
+                                  dot
+                                  status={
+                                    status === "online"
+                                      ? "success"
+                                      : status === "away"
+                                        ? "warning"
+                                        : "default"
+                                  }
+                                >
+                                  <Avatar
+                                    icon={<FiUser />}
+                                    src={c.avatar}
+                                    style={{ backgroundColor: "#10b981" }}
+                                  />
+                                </Badge>
+                              }
+                              title={
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span style={{ fontWeight: c.unreadCount > 0 ? "bold" : "normal" }}>{c.name}</span>
+                                  {c.lastMessageTime && (
+                                    <span style={{ fontSize: "10px", color: "#8c8c8c", fontWeight: "normal" }}>
+                                      {new Date(c.lastMessageTime).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              }
+                              description={
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span
+                                    style={{
+                                      textOverflow: "ellipsis",
+                                      overflow: "hidden",
+                                      whiteSpace: "nowrap",
+                                      maxWidth: "140px",
+                                      fontSize: "12px",
+                                      color: c.unreadCount > 0 ? "#111b21" : "#8c8c8c",
+                                      fontWeight: c.unreadCount > 0 ? "600" : "normal",
+                                    }}
+                                  >
+                                    {c.lastMessage || "No messages"}
+                                  </span>
+                                  {c.unreadCount > 0 && (
+                                    <Badge
+                                      count={c.unreadCount}
+                                      style={{ backgroundColor: "#10b981" }}
+                                    />
+                                  )}
+                                </div>
+                              }
+                            />
+                          </List.Item>
+                        );
+                      }}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
       </Sider>
@@ -1462,7 +1513,16 @@ export default function ChatPage() {
                   }}
                 />
                 <Dropdown
-                  menu={{ items: getMoreOptionsItems() }}
+                  menu={{
+                    items: getMoreOptionsItems(),
+                    onClick: (info) => {
+                      const items = getMoreOptionsItems();
+                      const item = items.find((i: any) => i?.key === info.key);
+                      if (item && (item as any).onClick) {
+                        (item as any).onClick();
+                      }
+                    }
+                  }}
                   placement="bottomRight"
                   trigger={["click"]}
                 >
@@ -1818,26 +1878,42 @@ export default function ChatPage() {
               >
                 Edit Channel
               </Button>
-              <Button
-                danger
-                type="dashed"
-                icon={<FiLogOut />}
-                onClick={handleLeaveChannel}
+              <Popconfirm
+                title="Leave Channel"
+                description="Are you sure you want to leave this channel?"
+                onConfirm={executeLeaveChannel}
+                okText="Leave"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true }}
               >
-                Leave
-              </Button>
+                <Button
+                  danger
+                  type="dashed"
+                  icon={<FiLogOut />}
+                >
+                  Leave
+                </Button>
+              </Popconfirm>
               {(isCurrentChannelAdmin ||
                 currentUserId ===
                   channels.find((c) => c.id === activeConversation.id)
                     ?.createdBy) && (
-                <Button
-                  danger
-                  type="primary"
-                  icon={<FiTrash2 />}
-                  onClick={handleDeleteChannel}
+                <Popconfirm
+                  title="Delete Channel"
+                  description="Deleting this channel will permanently remove all messages, files, and member associations. This action cannot be undone."
+                  onConfirm={executeDeleteChannel}
+                  okText="Delete"
+                  cancelText="Cancel"
+                  okButtonProps={{ danger: true }}
                 >
-                  Delete Channel
-                </Button>
+                  <Button
+                    danger
+                    type="primary"
+                    icon={<FiTrash2 />}
+                  >
+                    Delete Channel
+                  </Button>
+                </Popconfirm>
               )}
             </div>
 
@@ -1892,15 +1968,23 @@ export default function ChatPage() {
                     actions={[
                       isCurrentChannelAdmin &&
                         member.userId !== currentUserId && (
-                          <Button
+                          <Popconfirm
                             key="remove"
-                            type="link"
-                            danger
-                            size="small"
-                            onClick={() => handleRemoveMember(member.userId)}
+                            title="Remove Member"
+                            description="Are you sure you want to remove this member from the channel?"
+                            onConfirm={() => executeRemoveMember(member.userId)}
+                            okText="Remove"
+                            cancelText="Cancel"
+                            okButtonProps={{ danger: true }}
                           >
-                            Remove
-                          </Button>
+                            <Button
+                              type="link"
+                              danger
+                              size="small"
+                            >
+                              Remove
+                            </Button>
+                          </Popconfirm>
                         ),
                     ]}
                   >
@@ -2264,7 +2348,7 @@ export default function ChatPage() {
           <Form.Item
             name="isPrivate"
             label="Privacy Setting"
-            valuePropName="checked"
+            initialValue={true}
           >
             <Radio.Group>
               <Radio value={false}>

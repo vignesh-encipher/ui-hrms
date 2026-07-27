@@ -45,6 +45,26 @@ function MessageItem({
     }, {});
   }, [msg.reactions]);
 
+  if (msg.senderId === "system" || msg.senderId === "SYSTEM" || (msg.messageType as string) === "SYSTEM") {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", margin: "12px 0", width: "100%" }}>
+        <div
+          style={{
+            background: "rgba(0, 0, 0, 0.06)",
+            color: "#54656f",
+            padding: "4px 12px",
+            borderRadius: "8px",
+            fontSize: "12px",
+            textAlign: "center",
+            maxWidth: "85%",
+          }}
+        >
+          {msg.message}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
