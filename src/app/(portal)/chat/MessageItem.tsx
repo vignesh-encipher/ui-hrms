@@ -277,8 +277,9 @@ function MessageItem({
           <div
             style={{
               position: "absolute",
-              top: "-20px",
-              [isOwn ? "left" : "right"]: "8px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              [isOwn ? "left" : "right"]: "-95px",
               display: "flex",
               alignItems: "center",
               gap: "4px",

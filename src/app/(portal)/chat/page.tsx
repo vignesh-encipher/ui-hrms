@@ -1571,7 +1571,7 @@ export default function ChatPage() {
                 onScroll={handleScroll}
                 style={{
                   flex: 1,
-                  padding: "24px",
+                  padding: "5px 10px",
                   overflowY: "auto",
                   background: "#efeae2",
                 }}
