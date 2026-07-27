@@ -80,17 +80,17 @@ export default function ProfilePage() {
   if (loading || !profile) {
     return (
       <div className="max-w-[960px] mx-auto flex flex-col gap-6">
-        <Card bordered={false} className="rounded-3xl">
+        <Card bordered={false} className="!rounded-3xl">
           <Skeleton avatar active paragraph={{ rows: 1 }} />
         </Card>
         <Row gutter={[24, 24]}>
           <Col xs={24} md={10}>
-            <Card bordered={false} className="rounded-3xl">
+            <Card bordered={false} className="!rounded-3xl">
               <Skeleton active paragraph={{ rows: 4 }} />
             </Card>
           </Col>
           <Col xs={24} md={14}>
-            <Card bordered={false} className="rounded-3xl">
+            <Card bordered={false} className="!rounded-3xl">
               <Skeleton active paragraph={{ rows: 4 }} />
             </Card>
           </Col>
@@ -102,9 +102,9 @@ export default function ProfilePage() {
   return (
     <div className="max-w-[960px] mx-auto flex flex-col gap-6">
       {/* Profile Header */}
-      <Card bordered={false} className="rounded-3xl">
+      <Card bordered={false} className="!rounded-3xl">
         <div className="flex items-center gap-6 flex-wrap">
-          <Avatar size={80} icon={<UserOutlined />} className="bg-[#0284c7]" />
+          <Avatar size={80} icon={<UserOutlined />} className="!bg-[#0284c7]" />
           <div className="flex flex-col gap-1">
             <h3 className="m-0 text-2xl font-bold text-slate-800">{profile.firstName} {profile.lastName}</h3>
             <p className="m-0 text-slate-400">{profile.designationTitle || 'Designation not specified'}</p>
@@ -118,7 +118,7 @@ export default function ProfilePage() {
       <Row gutter={[24, 24]}>
         {/* Read Only Employment Details */}
         <Col xs={24} md={10}>
-          <Card title="Employment Information" bordered={false} className="rounded-3xl">
+          <Card title="Employment Information" bordered={false} className="!rounded-3xl">
             <Descriptions column={1} size="small" layout="vertical" className="m-0">
               <Descriptions.Item label="Department"><strong>{profile.departmentName || '-'}</strong></Descriptions.Item>
               <Descriptions.Item label="Manager"><strong>{profile.managerName || 'None'}</strong></Descriptions.Item>
@@ -131,24 +131,24 @@ export default function ProfilePage() {
 
         {/* Editable Contacts Form */}
         <Col xs={24} md={14}>
-          <Card title="Contact Information" bordered={false} className="rounded-3xl">
+          <Card title="Contact Information" bordered={false} className="!rounded-3xl">
             <Form
               form={form}
               layout="vertical"
               onFinish={onSubmit}
             >
               <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
-                <Input prefix={<PhoneOutlined />} className="rounded-lg" />
+                <Input prefix={<PhoneOutlined />} className="!rounded-lg" />
               </Form.Item>
               <Form.Item name="address" label="Address" rules={[{ required: true }]}>
-                <Input.TextArea rows={2} className="rounded-lg" />
+                <Input.TextArea rows={2} className="!rounded-lg" />
               </Form.Item>
               <Form.Item name="emergencyContact" label="Emergency Contact" rules={[{ required: true }]}>
-                <Input prefix={<MedicineBoxOutlined />} className="rounded-lg" />
+                <Input prefix={<MedicineBoxOutlined />} className="!rounded-lg" />
               </Form.Item>
 
               <div className="flex justify-end mt-6">
-                <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} className="rounded-xl bg-[#0284c7] h-10 font-bold">
+                <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} className="!rounded-xl !bg-[#0284c7] !h-10 !font-bold">
                   Update Profile
                 </Button>
               </div>

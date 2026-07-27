@@ -97,7 +97,7 @@ export default function PayrollPage() {
     { title: 'Deductions', dataIndex: 'deductions', key: 'deductions', render: (val: number) => `$${val.toLocaleString()}` },
     { title: 'Net Salary', dataIndex: 'netSalary', key: 'netSalary', render: (val: number) => <strong>${val.toLocaleString()}</strong> },
     { title: 'Status', dataIndex: 'status', key: 'status', render: (val: string) => (
-      <span className="px-2 py-0.5 rounded-xl text-[11px] font-bold bg-emerald-100 text-emerald-800">{val}</span>
+      <span className="!px-2 !py-0.5 !rounded-xl !text-[11px] !font-bold !bg-emerald-100 !text-emerald-800">{val}</span>
     )},
     {
       title: 'Payslip',
@@ -115,7 +115,7 @@ export default function PayrollPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Card bordered={false} className="rounded-3xl">
+      <Card bordered={false} className="!rounded-3xl">
         <div className="flex justify-between items-center">
           <div>
             <h3 className="m-0 text-lg font-bold text-slate-800">Payroll & Payslips</h3>
@@ -126,7 +126,7 @@ export default function PayrollPage() {
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setIsOpen(true)}
-              className="rounded-xl bg-[#0284c7]"
+              className="!rounded-xl !bg-[#0284c7]"
             >
               Run Payroll
             </Button>
@@ -134,14 +134,14 @@ export default function PayrollPage() {
         </div>
       </Card>
 
-      <Card bordered={false} className="rounded-3xl" bodyStyle={{ padding: 0 }}>
+      <Card bordered={false} className="!rounded-3xl" bodyStyle={{ padding: 0 }}>
         <Table
           dataSource={history}
           columns={columns}
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 5 }}
-          className="rounded-3xl overflow-hidden"
+          className="!rounded-3xl !overflow-hidden"
         />
       </Card>
 
@@ -164,20 +164,20 @@ export default function PayrollPage() {
           <Form.Item name="employeeId" label="Employee" rules={[{ required: true }]}>
             <Select
               placeholder="Choose Employee"
-              className="rounded-lg"
+              className="!rounded-lg"
               options={employees.map((emp) => ({ value: emp.employeeId, label: `${emp.firstName} ${emp.lastName} (${emp.employeeId})` }))}
             />
           </Form.Item>
           <div className="grid grid-cols-2 gap-4">
             <Form.Item name="month" label="Month">
               <Select
-                className="rounded-lg"
+                className="!rounded-lg"
                 options={['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => ({ value: m, label: m }))}
               />
             </Form.Item>
             <Form.Item name="year" label="Year">
               <Select
-                className="rounded-lg"
+                className="!rounded-lg"
                 options={[
                   { value: 2026, label: '2026' },
                   { value: 2025, label: '2025' }
@@ -185,25 +185,25 @@ export default function PayrollPage() {
               />
             </Form.Item>
             <Form.Item name="basic" label="Basic Salary">
-              <Input type="number" className="rounded-lg" />
+              <Input type="number" className="!rounded-lg" />
             </Form.Item>
             <Form.Item name="hra" label="HRA">
-              <Input type="number" className="rounded-lg" />
+              <Input type="number" className="!rounded-lg" />
             </Form.Item>
             <Form.Item name="allowance" label="Allowance">
-              <Input type="number" className="rounded-lg" />
+              <Input type="number" className="!rounded-lg" />
             </Form.Item>
             <Form.Item name="bonus" label="Bonus">
-              <Input type="number" className="rounded-lg" />
+              <Input type="number" className="!rounded-lg" />
             </Form.Item>
           </div>
           <Form.Item name="deductions" label="Deductions">
-            <Input type="number" className="rounded-lg" />
+            <Input type="number" className="!rounded-lg" />
           </Form.Item>
 
           <div className="flex justify-end gap-3 mt-6">
-            <Button onClick={() => setIsOpen(false)} className="rounded-lg">Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} className="rounded-lg bg-[#0284c7]">Generate</Button>
+            <Button onClick={() => setIsOpen(false)} className="!rounded-lg">Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={submitting} className="!rounded-lg !bg-[#0284c7]">Generate</Button>
           </div>
         </Form>
       </Modal>

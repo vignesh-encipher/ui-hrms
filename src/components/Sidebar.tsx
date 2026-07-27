@@ -79,7 +79,7 @@ export default function Sidebar() {
       breakpoint="lg"
       collapsedWidth="0"
       width={256}
-      className="h-screen fixed left-0 top-0 bottom-0 z-[100] border-r border-slate-100"
+      className="!h-screen !fixed !left-0 !top-0 !bottom-0 !z-[100] !border-r !border-slate-100"
       theme="light"
     >
       <div className="flex flex-col h-full">
@@ -98,7 +98,7 @@ export default function Sidebar() {
           selectedKeys={getSelectedKey()}
           items={filteredItems}
           onClick={({ key }) => router.push(key)}
-          className="flex-1 pt-4 border-r-0"
+          className="!flex-1 !pt-4 !border-r-0"
         />
 
         <div className="p-4 border-t border-slate-100">
@@ -107,7 +107,7 @@ export default function Sidebar() {
             danger
             icon={<LogoutOutlined />}
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 h-10 rounded-lg"
+            className="!w-full !flex !items-center !gap-2 !h-10 !rounded-lg"
           >
             Logout
           </Button>

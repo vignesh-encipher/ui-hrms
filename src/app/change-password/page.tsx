@@ -47,7 +47,7 @@ export default function ChangePasswordPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-900 relative overflow-hidden p-6">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-500/15 rounded-full blur-[80px]" />
         <Card
-          className="w-full max-w-[500px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10 text-center"
+          className="!w-full !max-w-[500px] !bg-white/5 !backdrop-blur-xl !border !border-white/10 !rounded-3xl !shadow-2xl !z-10 !text-center"
           bodyStyle={{ padding: '40px 32px' }}
         >
           <Result
@@ -63,7 +63,7 @@ export default function ChangePasswordPage() {
                 type="primary"
                 key="login"
                 onClick={() => router.push('/login')}
-                className="h-[46px] rounded-xl bg-[#0284c7] border-none font-bold shadow-lg shadow-[#0284c7]/30 px-8"
+                className="!h-[46px] !rounded-xl !bg-[#0284c7] !border-none !font-bold !shadow-lg !shadow-[#0284c7]/30 !px-8"
               >
                 Go to Login
               </Button>
@@ -81,7 +81,7 @@ export default function ChangePasswordPage() {
       <div className="absolute bottom-[20%] right-[20%] w-[400px] h-[400px] bg-indigo-500/15 rounded-full blur-[100px]" />
 
       <Card
-        className="w-full max-w-[450px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10"
+        className="!w-full !max-w-[450px] !bg-white/5 !backdrop-blur-xl !border !border-white/10 !rounded-3xl !shadow-2xl !z-10"
         bodyStyle={{ padding: '32px' }}
       >
         <div className="text-center mb-6">
@@ -93,11 +93,11 @@ export default function ChangePasswordPage() {
         </div>
 
         <Alert
-          message="Temporary Password Detected"
-          description="Since this is your first login, a password update is mandatory for security purposes."
+          message={<span className="!text-white !font-semibold">Temporary Password Detected</span>}
+          description={<span className="!text-slate-300">Since this is your first login, a password update is mandatory for security purposes.</span>}
           type="info"
           showIcon
-          className="mb-6 bg-sky-500/10 border border-sky-500/20 text-sky-100 rounded-xl"
+          className="!mb-6 !bg-sky-500/10 !border !border-sky-500/20 !rounded-xl"
         />
 
         <Form
@@ -114,7 +114,7 @@ export default function ChangePasswordPage() {
             <Input.Password
               prefix={<LockOutlined className="text-white/65" />}
               placeholder="Current Password"
-              className="rounded-xl"
+              className="!rounded-xl"
             />
           </Form.Item>
 
@@ -154,7 +154,7 @@ export default function ChangePasswordPage() {
             <Input.Password
               prefix={<LockOutlined className="text-white/65" />}
               placeholder="New Password"
-              className="rounded-xl"
+              className="!rounded-xl"
             />
           </Form.Item>
 
@@ -178,16 +178,16 @@ export default function ChangePasswordPage() {
             <Input.Password
               prefix={<LockOutlined className="text-white/65" />}
               placeholder="Confirm New Password"
-              className="rounded-xl"
+              className="!rounded-xl"
             />
           </Form.Item>
 
-          <Form.Item className="mb-0 mt-6">
+          <Form.Item className="!mb-0 !mt-6">
             <Button
               type="primary"
               htmlType="submit"
               loading={loading}
-              className="w-full h-[46px] rounded-xl bg-[#0284c7] border-none font-bold shadow-lg shadow-[#0284c7]/30 mb-3"
+              className="!w-full !h-[46px] !rounded-xl !bg-[#0284c7] !border-none !font-bold !shadow-lg !shadow-[#0284c7]/30 !mb-3"
             >
               Update Password
             </Button>
@@ -195,7 +195,7 @@ export default function ChangePasswordPage() {
             <Button
               type="text"
               onClick={handleCancel}
-              className="w-full h-[46px] rounded-xl text-slate-400 font-medium flex items-center justify-center gap-2 hover:text-slate-300"
+              className="!w-full !h-[46px] !rounded-xl !text-slate-400 !font-medium !flex !items-center !justify-center !gap-2 hover:!text-slate-300"
             >
               <ArrowLeftOutlined /> Back to Login
             </Button>

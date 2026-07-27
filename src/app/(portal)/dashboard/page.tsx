@@ -219,7 +219,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       {/* Attendance Logger Row */}
       {employeeId && (
-        <Card bordered={false} className="rounded-3xl shadow-sm">
+        <Card bordered={false} className="!rounded-3xl !shadow-sm">
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div className="flex items-center gap-3">
               <ClockCircleOutlined className="text-2xl text-[#0284c7]" />
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                   onClick={handleClockIn}
                   loading={clockInLoading}
                   disabled={clockInLoading || !!(todayRecord && !todayRecord.clockOut)}
-                  className="bg-emerald-500 border-emerald-500 rounded-xl font-bold text-white hover:bg-emerald-600 hover:border-emerald-600"
+                  className="!bg-emerald-500 !border-emerald-500 !rounded-xl !font-bold text-white hover:!bg-emerald-600 hover:!border-emerald-600"
                 >
                   Clock In
                 </Button>
@@ -258,7 +258,7 @@ export default function DashboardPage() {
                   onClick={handleClockOut}
                   loading={clockOutLoading}
                   disabled={clockOutLoading || !todayRecord || !!todayRecord.clockOut}
-                  className="rounded-xl font-bold"
+                  className="!rounded-xl !font-bold"
                 >
                   Clock Out
                 </Button>
@@ -272,7 +272,7 @@ export default function DashboardPage() {
       <Row gutter={[24, 24]}>
         {cards.map((card, idx) => (
           <Col key={idx} xs={24} sm={12} lg={4} className="grow">
-            <Card bordered={false} className="rounded-[20px] shadow-sm">
+            <Card bordered={false} className="!rounded-[20px] !shadow-sm">
               <Statistic
                 title={<span className="text-slate-400 text-sm">{card.title}</span>}
                 value={card.value}
@@ -291,7 +291,7 @@ export default function DashboardPage() {
       {/* Main Charts Row */}
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={16}>
-          <Card title="Attendance Trend (Last 5 Days)" bordered={false} className="rounded-3xl">
+          <Card title="Attendance Trend (Last 5 Days)" bordered={false} className="!rounded-3xl">
             <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.attendanceTrend}>
@@ -315,7 +315,7 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card title="Department Distribution" bordered={false} className="rounded-3xl">
+          <Card title="Department Distribution" bordered={false} className="!rounded-3xl">
             <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -345,7 +345,7 @@ export default function DashboardPage() {
       {/* Birthdays & Activities Row */}
       <Row gutter={[24, 24]}>
         <Col xs={24} md={12} lg={8}>
-          <Card title="Leave Statistics by Type" bordered={false} className="rounded-3xl">
+          <Card title="Leave Statistics by Type" bordered={false} className="!rounded-3xl">
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.leaveStatistics}>
@@ -361,7 +361,7 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} md={12} lg={8}>
-          <Card title="Upcoming Birthdays" bordered={false} className="rounded-3xl min-h-[328px]">
+          <Card title="Upcoming Birthdays" bordered={false} className="!rounded-3xl !min-h-[328px]">
             <List
               itemLayout="horizontal"
               dataSource={data.upcomingBirthdays}
@@ -380,7 +380,7 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card title="Recent Activity" bordered={false} className="rounded-3xl min-h-[328px]">
+          <Card title="Recent Activity" bordered={false} className="!rounded-3xl !min-h-[328px]">
             <List
               itemLayout="horizontal"
               dataSource={data.recentActivities}

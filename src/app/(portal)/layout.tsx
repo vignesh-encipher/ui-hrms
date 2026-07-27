@@ -33,11 +33,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   return (
-    <Layout className="min-h-screen">
+    <Layout className="!min-h-screen">
       <Sidebar />
-      <Layout className="ml-64 transition-all duration-200">
+      <Layout className="!ml-64 !transition-all !duration-200">
         <Header />
-        <Content className="mt-[88px] mx-6 mb-6 min-h-[280px]">
+        <Content className="!mt-[88px] !mx-6 !mb-6 !min-h-[280px]">
           {children}
         </Content>
       </Layout>

@@ -64,7 +64,7 @@ export default function LoginPage() {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-[80px]" />
 
       <Card
-        className="w-full max-w-[400px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl z-10"
+        className="!w-full !max-w-[400px] !bg-white/5 !backdrop-blur-xl !border !border-white/10 !rounded-3xl !shadow-2xl !z-10"
         bodyStyle={{ padding: '32px' }}
       >
         <div className="text-center mb-8">
@@ -87,8 +87,8 @@ export default function LoginPage() {
             rules={[{ required: true, message: 'Please input your username!' }]}
           >
             <Input
-              className="login-input rounded-xl"
-              prefix={<UserOutlined className="text-white/65" />}
+              className="login-input !rounded-xl"
+              prefix={<UserOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
               placeholder="Username"
             />
           </Form.Item>
@@ -98,18 +98,18 @@ export default function LoginPage() {
             rules={[{ required: true, message: 'Please input your password!' }]}
           >
             <Input.Password
-              className="login-input rounded-xl"
-              prefix={<LockOutlined className="text-white/65" />}
+              className="login-input !rounded-xl"
+              prefix={<LockOutlined style={{ color: 'rgba(255,255,255,0.65)' }} />}
               placeholder="Password"
             />
           </Form.Item>
 
-          <Form.Item className="mb-0">
+          <Form.Item className="!mb-0">
             <Button
               type="primary"
               htmlType="submit"
               loading={loading}
-              className="w-full h-[46px] rounded-xl bg-[#0284c7] border-none font-bold shadow-lg shadow-[#0284c7]/30 mt-2"
+              className="!w-full !h-[46px] !rounded-xl !bg-[#0284c7] !border-none !font-bold !shadow-lg !shadow-[#0284c7]/30 !mt-2"
             >
               Sign In
             </Button>

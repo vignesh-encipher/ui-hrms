@@ -28,8 +28,8 @@ export default function Header() {
 
   return (
     <AntdHeader
-      className={`px-6 flex items-center justify-between h-16 fixed top-0 right-0 left-[256px] z-[90] border-b border-slate-100 transition-colors duration-200 leading-[4rem] ${
-        themeMode === 'dark' ? 'bg-[#141414]' : 'bg-white'
+      className={`!px-6 !flex !items-center !justify-between !h-16 !fixed !top-0 !right-0 !left-[256px] !z-[90] !border-b !border-slate-100/50 !transition-colors !duration-200 !leading-[4rem] ${
+        themeMode === 'dark' ? '!bg-[#141414]' : '!bg-white'
       }`}
     >
       <div className="flex w-full justify-between items-center">
@@ -42,7 +42,7 @@ export default function Header() {
             shape="circle"
             icon={themeMode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
             onClick={() => dispatch(toggleTheme())}
-            className="text-base"
+            className="!text-base"
           />
 
           {/* Notifications */}
@@ -52,13 +52,13 @@ export default function Header() {
               shape="circle"
               icon={<BellOutlined />}
               onClick={() => router.push('/chat')}
-              className="text-base"
+              className="!text-base"
             />
           </Badge>
 
           {/* User profile brief */}
-          <Space size={8} className="border-l border-slate-100 pl-4">
-            <Avatar icon={<UserOutlined />} className="bg-[#0284c7]" />
+          <Space size={8} className="!border-l !border-slate-100 !pl-4">
+            <Avatar icon={<UserOutlined />} className="!bg-[#0284c7]" />
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold text-slate-700">{username || 'User'}</span>
               <span className="text-[10px] text-slate-400 uppercase">
