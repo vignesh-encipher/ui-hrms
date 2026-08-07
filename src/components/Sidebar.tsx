@@ -17,7 +17,15 @@ import {
   ClusterOutlined,
   DollarOutlined,
   LogoutOutlined,
-  MessageOutlined
+  MessageOutlined,
+  FileTextOutlined,
+  AimOutlined,
+  RocketOutlined,
+  SafetyCertificateOutlined,
+  WalletOutlined,
+  SwapOutlined,
+  LaptopOutlined,
+  CustomerServiceOutlined
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -47,6 +55,14 @@ export default function Sidebar() {
     { key: '/attendance', label: 'Attendance', icon: <CalendarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/leaves', label: 'Leaves', icon: <CarryOutOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/payroll', label: 'Payroll', icon: <DollarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
+    { key: '/requisitions', label: 'Resource Requisition', icon: <FileTextOutlined />, roles: ['ROLE_MANAGER', 'ROLE_HR', 'ROLE_FINANCE', 'ROLE_RECRUITER', 'ROLE_SUPER_ADMIN'] },
+    { key: '/recruitment', label: 'Recruitment', icon: <AimOutlined />, roles: ['ROLE_HR', 'ROLE_RECRUITER', 'ROLE_SUPER_ADMIN'] },
+    { key: '/pre-onboarding', label: 'Pre-Onboarding', icon: <RocketOutlined />, roles: ['ROLE_HR', 'ROLE_RECRUITER', 'ROLE_IT_ADMIN', 'ROLE_SUPER_ADMIN'] },
+    { key: '/confirmation', label: 'Probation & Confirmation', icon: <SafetyCertificateOutlined />, roles: ['ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
+    { key: '/reimbursement', label: 'Reimbursement', icon: <WalletOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_FINANCE', 'ROLE_SUPER_ADMIN'] },
+    { key: '/separation', label: 'Separation & Exit', icon: <SwapOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_FINANCE', 'ROLE_SUPER_ADMIN'] },
+    { key: '/assets', label: 'Asset Management', icon: <LaptopOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_IT_ADMIN', 'ROLE_SUPER_ADMIN'] },
+    { key: '/helpdesk', label: 'Helpdesk', icon: <CustomerServiceOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_FINANCE', 'ROLE_IT_ADMIN', 'ROLE_SUPER_ADMIN'] },
     {
       key: '/chat',
       label: (

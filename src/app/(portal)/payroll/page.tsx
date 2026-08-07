@@ -4,8 +4,12 @@ import React, { useEffect, useState } from 'react';
 import API from '@/services/api';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
-import { Card, Table, Button, Space, Modal, Form, Input, Select, message } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Input, Select, message, Tabs } from 'antd';
 import { PlusOutlined, DownloadOutlined } from '@ant-design/icons';
+import SalaryStructureTab from './components/SalaryStructureTab';
+import RevisionsTab from './components/RevisionsTab';
+import LoansTab from './components/LoansTab';
+import BankAdviceTab from './components/BankAdviceTab';
 
 const { Option } = Select;
 
@@ -113,7 +117,7 @@ export default function PayrollPage() {
     }
   ];
 
-  return (
+  const payslipsTabContent = (
     <div className="flex flex-col gap-5">
       <Card bordered={false} className="!rounded-3xl">
         <div className="flex justify-between items-center">
@@ -208,5 +212,18 @@ export default function PayrollPage() {
         </Form>
       </Modal>
     </div>
+  );
+
+  return (
+    <Tabs
+      defaultActiveKey="payslips"
+      items={[
+        { key: 'payslips', label: 'Payroll & Payslips', children: payslipsTabContent },
+        { key: 'structure', label: 'Salary Structure', children: <SalaryStructureTab /> },
+        { key: 'revisions', label: 'Revisions & Arrears', children: <RevisionsTab /> },
+        { key: 'loans', label: 'Loans & Advances', children: <LoansTab /> },
+        { key: 'bankAdvice', label: 'Bank Advice', children: <BankAdviceTab /> },
+      ]}
+    />
   );
 }
