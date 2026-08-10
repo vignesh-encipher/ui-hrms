@@ -49,61 +49,37 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   
   const { employeeId } = useSelector((state: RootState) => state.auth);
-  const [todayRecord, setTodayRecord] = useState<any>(null);
-  const [todayRecords, setTodayRecords] = useState<any[]>([]);
+  const [todayStatus, setTodayStatus] = useState<any>(null);
   const [secondsToday, setSecondsToday] = useState<number>(0);
   const [clockInLoading, setClockInLoading] = useState(false);
   const [clockOutLoading, setClockOutLoading] = useState(false);
 
   const loadToday = () => {
     if (!employeeId) return;
-    
-    // Fetch today's records by loading the current month's history and filtering for today
-    const now = new Date();
-    API.get('/attendance/monthly', {
-      params: {
-        employeeId,
-        month: now.getMonth() + 1,
-        year: now.getFullYear()
-      }
-    })
+    API.get('/attendance/today')
       .then((res) => {
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const localTodayStr = `${year}-${month}-${day}`;
-        
-        const filtered = res.data.filter((r: any) => r.date === localTodayStr);
-        setTodayRecords(filtered);
-        
-        // Also set todayRecord to the active session or the last session
-        const active = filtered.find((r: any) => !r.clockOut);
-        if (active) {
-          setTodayRecord(active);
-        } else if (filtered.length > 0) {
-          setTodayRecord(filtered[filtered.length - 1]);
-        } else {
-          setTodayRecord(null);
-        }
+        setTodayStatus(res.data);
+        setSecondsToday((res.data?.workingMinutesSoFar || 0) * 60);
       })
       .catch((err) => console.error(err));
   };
 
   useEffect(() => {
     loadToday();
+    // Re-sync with the server every 60s rather than trusting a client-only tick indefinitely
+    const resync = setInterval(loadToday, 60000);
+    return () => clearInterval(resync);
   }, [employeeId]);
 
   const handleClockIn = async () => {
     if (!employeeId) return;
     try {
       setClockInLoading(true);
-      await API.post('/attendance/clock-in', null, {
-        params: { employeeId, status: 'Present', remarks: 'Web Portal' },
-      });
-      message.success('Clocked In successfully!');
+      await API.post('/attendance/check-in');
+      message.success('Checked In successfully!');
       loadToday();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error clocking in');
+      message.error(err.response?.data?.message || 'Error checking in');
     } finally {
       setClockInLoading(false);
     }
@@ -113,55 +89,23 @@ export default function DashboardPage() {
     if (!employeeId) return;
     try {
       setClockOutLoading(true);
-      await API.post('/attendance/clock-out', null, { params: { employeeId } });
-      message.success('Clocked Out successfully!');
+      await API.post('/attendance/check-out');
+      message.success('Checked Out successfully!');
       loadToday();
     } catch (err: any) {
-      message.error(err.response?.data?.message || 'Error clocking out');
+      message.error(err.response?.data?.message || 'Error checking out');
     } finally {
       setClockOutLoading(false);
     }
   };
 
   useEffect(() => {
-    let interval: any;
-    const activeSession = todayRecords.find((r: any) => !r.clockOut);
-    
-    if (activeSession) {
-      const updateTimer = () => {
-        let completedSeconds = 0;
-        todayRecords.forEach((rec) => {
-          if (rec.clockIn && rec.clockOut) {
-            const [inH, inM, inS = 0] = rec.clockIn.split(':').map(Number);
-            const [outH, outM, outS = 0] = rec.clockOut.split(':').map(Number);
-            completedSeconds += (outH * 3600 + outM * 60 + outS) - (inH * 3600 + inM * 60 + inS);
-          }
-        });
-
-        const [inH, inM, inS = 0] = activeSession.clockIn.split(':').map(Number);
-        const now = new Date();
-        const nowSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-        const activeSeconds = nowSeconds - (inH * 3600 + inM * 60 + inS);
-        
-        setSecondsToday(completedSeconds + (activeSeconds > 0 ? activeSeconds : 0));
-      };
-      
-      updateTimer();
-      interval = setInterval(updateTimer, 1000);
-    } else {
-      let completedSeconds = 0;
-      todayRecords.forEach((rec) => {
-        if (rec.clockIn && rec.clockOut) {
-          const [inH, inM, inS = 0] = rec.clockIn.split(':').map(Number);
-          const [outH, outM, outS = 0] = rec.clockOut.split(':').map(Number);
-          completedSeconds += (outH * 3600 + outM * 60 + outS) - (inH * 3600 + inM * 60 + inS);
-        }
-      });
-      setSecondsToday(completedSeconds);
-    }
-    
+    if (!todayStatus?.checkedIn || todayStatus?.onBreak) return;
+    const interval = setInterval(() => {
+      setSecondsToday((s) => s + 1);
+    }, 1000);
     return () => clearInterval(interval);
-  }, [todayRecords]);
+  }, [todayStatus?.checkedIn, todayStatus?.onBreak]);
 
   const formatSeconds = (totalSecs: number) => {
     const hrs = Math.floor(totalSecs / 3600);
@@ -169,6 +113,11 @@ export default function DashboardPage() {
     const secs = Math.floor(totalSecs % 60);
     return `${hrs}h ${mins}m ${secs}s`;
   };
+
+  const formatTime = (iso?: string) =>
+    iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+  const lastSession = todayStatus?.attendance?.sessions?.[todayStatus.attendance.sessions.length - 1];
 
   useEffect(() => {
     API.get('/dashboard/stats')
@@ -226,11 +175,13 @@ export default function DashboardPage() {
               <div>
                 <h4 className="m-0 text-base font-bold text-slate-800">Attendance Logger</h4>
                 <p className="m-0 text-xs text-slate-400">
-                  {todayRecord ? (
-                    todayRecord.clockOut 
-                      ? `Last session: clocked out at ${todayRecord.clockOut}`
-                      : `Active session: clocked in at ${todayRecord.clockIn}`
-                  ) : 'Not clocked in yet today'}
+                  {todayStatus?.onBreak
+                    ? 'On break'
+                    : todayStatus?.checkedIn
+                    ? `Active session: checked in at ${formatTime(lastSession?.checkIn)}`
+                    : lastSession?.checkOut
+                    ? `Last session: checked out at ${formatTime(lastSession.checkOut)}`
+                    : 'Not checked in yet today'}
                 </p>
               </div>
             </div>
@@ -247,7 +198,7 @@ export default function DashboardPage() {
                   type="primary"
                   onClick={handleClockIn}
                   loading={clockInLoading}
-                  disabled={clockInLoading || !!(todayRecord && !todayRecord.clockOut)}
+                  disabled={clockInLoading || !!todayStatus?.checkedIn}
                   className="!bg-emerald-500 !border-emerald-500 !rounded-xl !font-bold text-white hover:!bg-emerald-600 hover:!border-emerald-600"
                 >
                   Clock In
@@ -257,7 +208,7 @@ export default function DashboardPage() {
                   danger
                   onClick={handleClockOut}
                   loading={clockOutLoading}
-                  disabled={clockOutLoading || !todayRecord || !!todayRecord.clockOut}
+                  disabled={clockOutLoading || !todayStatus?.checkedIn}
                   className="!rounded-xl !font-bold"
                 >
                   Clock Out

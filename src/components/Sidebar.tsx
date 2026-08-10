@@ -53,6 +53,7 @@ export default function Sidebar() {
     { key: '/departments', label: 'Departments', icon: <ApartmentOutlined />, roles: ['ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/designations', label: 'Designations', icon: <SolutionOutlined />, roles: ['ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/attendance', label: 'Attendance', icon: <CalendarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
+    { key: '/work-calendar', label: 'Work Calendar', icon: <CalendarOutlined />, roles: ['ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/leaves', label: 'Leaves', icon: <CarryOutOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_MANAGER', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/payroll', label: 'Payroll', icon: <DollarOutlined />, roles: ['ROLE_EMPLOYEE', 'ROLE_HR', 'ROLE_SUPER_ADMIN'] },
     { key: '/requisitions', label: 'Resource Requisition', icon: <FileTextOutlined />, roles: ['ROLE_MANAGER', 'ROLE_HR', 'ROLE_FINANCE', 'ROLE_RECRUITER', 'ROLE_SUPER_ADMIN'] },
@@ -114,7 +115,8 @@ export default function Sidebar() {
           selectedKeys={getSelectedKey()}
           items={filteredItems}
           onClick={({ key }) => router.push(key)}
-          className="!flex-1 !pt-4 !border-r-0"
+          className="!flex-1 !pt-4 !border-r-0 !overflow-y-auto"
+          style={{ minHeight: 0 }}
         />
 
         <div className="p-4 border-t border-slate-100">
